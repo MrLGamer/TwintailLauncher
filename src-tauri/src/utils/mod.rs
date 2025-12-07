@@ -703,6 +703,23 @@ pub fn patch_hkrpg(app: &AppHandle, dir: String) {
     }
 }
 
+// path helper for LD_PRELOAD
+#[cfg(target_os = "linux")]
+pub fn network_block_lib(app: &AppHandle) -> Option<String> {
+    let path: PathBuf = app
+        .path()
+        .resource_dir()
+        .ok()?
+        .join("resources")
+        .join("network_block.so");
+
+    if path.exists() {
+        Some(path.to_string_lossy().to_string())
+    } else {
+        None
+    }
+}
+
 pub fn edit_wuwa_configs_xxmi(engine_ini: String) {
     let file = Path::new(&engine_ini);
     if file.exists() {

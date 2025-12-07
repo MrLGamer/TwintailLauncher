@@ -12,7 +12,7 @@ use crate::utils::{PathResolve};
 use fischl::utils::wait_for_process;
 
 #[cfg(target_os = "linux")]
-use crate::utils::{runner_from_runner_version, patch_hkrpg, get_steam_appid};
+use crate::utils::{runner_from_runner_version, patch_hkrpg, network_block_lib, get_steam_appid};
 #[cfg(target_os = "linux")]
 use crate::utils::repo_manager::{get_compatibility};
 #[cfg(target_os = "linux")]
@@ -140,7 +140,33 @@ pub fn launch(app: &AppHandle, install: LauncherInstall, gm: GameManifest, gs: G
             if install.mangohud_config_path != "" { cmd.env("MANGOHUD_CONFIGFILE", format!("{}", install.clone().mangohud_config_path).as_str()); }
         }
         // Set override for hkrpg fix
-        if gm.biz == "hkrpg_global" { if !install.use_jadeite { cmd.env("WINEDLLOVERRIDES", "lsteamclient=d;KRSDKExternal.exe=d;jsproxy=n,b"); patch_hkrpg(app, dir.clone()); } }
+        if gm.biz == "hkrpg_global" {
+            if !install.use_jadeite {
+                cmd.env(
+                    "WINEDLLOVERRIDES",
+                    "lsteamclient=d;KRSDKExternal.exe=d;jsproxy=n,b",
+                );
+                patch_hkrpg(app, dir.clone());
+            }
+
+            // Linux-only: inject our network_block.so via LD_PRELOAD
+            #[cfg(target_os = "linux")]
+            {
+                if let Some(nb_path) = network_block_lib(app) {
+                    // Put our .so first, but keep any existing LD_PRELOAD (MangoHud, etc.)
+                    let mut preload = nb_path;
+                    if let Ok(existing) = std::env::var("LD_PRELOAD") {
+                        if !existing.is_empty() {
+                            preload.push(':');
+                            preload.push_str(&existing);
+                        }
+                    }
+
+                    cmd.env("LD_PRELOAD", preload);
+                }
+            }
+        }
+
         // https://github.com/CachyOS/proton-cachyos/blob/cachyos_10.0_20251120/main/proton#L1365
         // https://github.com/CachyOS/proton-cachyos/blob/cachyos_10.0_20251120/main/proton#L1541
         // https://github.com/SpectrumQT/XXMI-Launcher/blob/main/src/xxmi_launcher/core/packages/model_importers/wwmi_package.py#L330
@@ -231,7 +257,33 @@ pub fn launch(app: &AppHandle, install: LauncherInstall, gm: GameManifest, gs: G
             if install.mangohud_config_path != "" { cmd.env("MANGOHUD_CONFIGFILE", format!("{}", install.clone().mangohud_config_path).as_str()); }
         }
         // Set override for hkrpg fix
-        if gm.biz == "hkrpg_global" { if !install.use_jadeite { cmd.env("WINEDLLOVERRIDES", "lsteamclient=d;KRSDKExternal.exe=d;jsproxy=n,b"); patch_hkrpg(app, dir.clone()); } }
+        if gm.biz == "hkrpg_global" {
+            if !install.use_jadeite {
+                cmd.env(
+                    "WINEDLLOVERRIDES",
+                    "lsteamclient=d;KRSDKExternal.exe=d;jsproxy=n,b",
+                );
+                patch_hkrpg(app, dir.clone());
+            }
+
+            // Linux-only: inject our network_block.so via LD_PRELOAD
+            #[cfg(target_os = "linux")]
+            {
+                if let Some(nb_path) = network_block_lib(app) {
+                    // Put our .so first, but keep any existing LD_PRELOAD (MangoHud, etc.)
+                    let mut preload = nb_path;
+                    if let Ok(existing) = std::env::var("LD_PRELOAD") {
+                        if !existing.is_empty() {
+                            preload.push(':');
+                            preload.push_str(&existing);
+                        }
+                    }
+
+                    cmd.env("LD_PRELOAD", preload);
+                }
+            }
+        }
+
         // https://github.com/CachyOS/proton-cachyos/blob/cachyos_10.0_20251120/main/proton#L1365
         // https://github.com/CachyOS/proton-cachyos/blob/cachyos_10.0_20251120/main/proton#L1541
         // https://github.com/SpectrumQT/XXMI-Launcher/blob/main/src/xxmi_launcher/core/packages/model_importers/wwmi_package.py#L330
