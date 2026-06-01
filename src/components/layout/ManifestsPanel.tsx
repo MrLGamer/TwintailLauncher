@@ -1,7 +1,6 @@
 import React, { useEffect } from "react";
 import SidebarIconManifest from "../sidebar/SidebarIconManifest.tsx";
 import { POPUPS } from "../popups/POPUPS.ts";
-import { isLinux } from "../../utils/imagePreloader";
 import { motion } from "framer-motion";
 
 interface GameInfoItem {
@@ -126,9 +125,9 @@ const ManifestsPanel: React.FC<ManifestsPanelProps> = ({
         >
           <div className="flex flex-row items-center gap-2 overflow-x-auto px-3 py-2 scrollbar-none select-none">
             {gamesinfo.map((game, _index) => {
-              // Use dynamic background if available (skip on Linux), otherwise fall back to static
+              // Use dynamic background if available, otherwise fall back to static
               // Using || handles undefined, null, and empty string cases
-              let bg = (!isLinux && game.assets.game_live_background) || game.assets.game_background;
+              let bg = game.assets.game_live_background || game.assets.game_background;
 
               return (
                 <motion.div

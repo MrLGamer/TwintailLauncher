@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { cacheImage, isImageFailed, isImagePreloaded, isVideoUrl } from "../../utils/imagePreloader";
+import { cacheImage, disposeVideoElement, getPlayableVideoUrl, isImageFailed, isImagePreloaded, isVideoUrl } from "../../utils/imagePreloader";
 
 interface CachedImageProps {
     src: string;
@@ -9,11 +9,19 @@ interface CachedImageProps {
 
 export function CachedImage({ src, alt = "", className = "" }: CachedImageProps) {
     const currentSrcRef = useRef(src);
+    const videoRef = useRef<HTMLVideoElement | null>(null);
     const [isReady, setIsReady] = useState(() => !!src && isImagePreloaded(src) && !isImageFailed(src));
 
     useEffect(() => {
         currentSrcRef.current = src;
         setIsReady(!!src && isImagePreloaded(src) && !isImageFailed(src));
+    }, [src]);
+
+    useEffect(() => {
+        const video = videoRef.current;
+        return () => {
+            if (video) disposeVideoElement(video);
+        };
     }, [src]);
 
     if (!src) {
@@ -27,7 +35,8 @@ export function CachedImage({ src, alt = "", className = "" }: CachedImageProps)
             {isVideo ? (
                 <video
                     key={`video-${src}`}
-                    src={src}
+                    ref={videoRef}
+                    src={getPlayableVideoUrl(src)}
                     className={className}
                     muted
                     playsInline

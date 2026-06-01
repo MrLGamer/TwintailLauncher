@@ -11,8 +11,9 @@
  * @returns Promise that resolves when all images are loaded
  */
 
-// Platform detection - used to disable dynamic backgrounds on Linux
-// TODO: Remove this check when Linux video backgrounds are fixed
+import { invoke } from "@tauri-apps/api/core";
+
+// Platform detection for Linux-specific UI behavior.
 export const isLinux = window.navigator.platform.includes("Linux");
 
 // Keep strong references to preloaded elements to prevent GC
@@ -26,6 +27,52 @@ const loadedUrls: Set<string> = new Set();
 
 // Track URLs that failed to load (for retry during recovery)
 const failedUrls: Set<string> = new Set();
+
+// Linux video files are cached on disk at boot so playback does not depend on
+// CDN range requests after the initial download completes.
+const playableVideoUrls: Map<string, string> = new Map();
+
+async function preparePlayableVideoUrl(url: string): Promise<string> {
+  if (!isLinux || !isVideoUrl(url)) return url;
+
+  const cached = playableVideoUrls.get(url);
+  if (cached) return cached;
+
+  try {
+    // Complete the disk cache before playback starts. WebKitGTK may request
+    // additional CDN ranges during playback or looping, so streaming first is
+    // not sufficient for reliable offline behavior.
+    const localUrl = await invoke<string>("cache_live_background", { url });
+    playableVideoUrls.set(url, localUrl);
+    return localUrl;
+  } catch (error) {
+    console.warn(`Failed to cache live wallpaper, using remote URL: ${url}`, error);
+    return url;
+  }
+}
+
+export function getPlayableVideoUrl(url: string): string {
+  return playableVideoUrls.get(url) || url;
+}
+
+/**
+ * Release the media pipeline behind a video element. Removing a video from the
+ * DOM alone can leave a WebKitGTK playback stream alive until garbage collection.
+ */
+export function disposeVideoElement(video: HTMLVideoElement): void {
+  try {
+    video.pause();
+    video.onended = null;
+    video.onerror = null;
+    video.onloadeddata = null;
+    video.oncanplaythrough = null;
+    video.removeAttribute("src");
+    video.load();
+  } catch {
+    // The element may already be detached or partially initialized.
+  }
+  video.remove();
+}
 
 export function isImagePreloaded(url: string): boolean {
   return loadedUrls.has(url) && !failedUrls.has(url);
@@ -91,7 +138,13 @@ export function cacheImage(url: string, element: HTMLImageElement | HTMLVideoEle
   } else {
     loadedUrls.add(url);
     failedUrls.delete(url);
-    imageElementCache.set(url, element);
+    // Linux live backgrounds are backed by a local disk URL. Retaining video
+    // elements here keeps their WebKitGTK playback streams open unnecessarily.
+    if (isLinux && element instanceof HTMLVideoElement) {
+      imageElementCache.delete(url);
+    } else {
+      imageElementCache.set(url, element);
+    }
   }
 }
 
@@ -99,8 +152,8 @@ export function cacheImage(url: string, element: HTMLImageElement | HTMLVideoEle
  * Check if content is a video based on file extension
  */
 export function isVideoUrl(url: string): boolean {
-  if (isLinux) return false; // TODO: Re-enable when Linux video backgrounds are fixed
-  return url.endsWith('.webm') || url.endsWith('.mp4');
+  const normalized = url.split("?")[0].split("#")[0].toLowerCase();
+  return normalized.endsWith('.webm') || normalized.endsWith('.mp4');
 }
 
 /**
@@ -125,6 +178,24 @@ export function preloadImage(src: string): Promise<void> {
 
   // Create new preload promise using element-based loading
   const promise = new Promise<void>((resolve) => {
+    if (isLinux && isVideoUrl(src)) {
+      // On Linux, caching the complete file is sufficient preparation. Opening
+      // a hidden video for every wallpaper would leave one playback stream per
+      // cached background alive even though only the selected one is visible.
+      preparePlayableVideoUrl(src).then((playableUrl) => {
+        if (playableUrl === src) {
+          loadedUrls.delete(src);
+          failedUrls.add(src);
+        } else {
+          loadedUrls.add(src);
+          failedUrls.delete(src);
+        }
+        pendingPreloads.delete(src);
+        resolve();
+      });
+      return;
+    }
+
     if (isVideoUrl(src)) {
       const video = document.createElement("video");
       video.preload = "auto";

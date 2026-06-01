@@ -4,10 +4,36 @@ import { invoke } from "@tauri-apps/api/core";
 import { Events } from "../constants/events.ts";
 import { registerEvents } from "./events.ts";
 import { translate } from "../utils/i18n";
-import { isLinux, clearFailedImages, getFailedImageCount, isImagePreloaded } from "../utils/imagePreloader.ts";
+import { clearFailedImages, getFailedImageCount, isImagePreloaded } from "../utils/imagePreloader.ts";
 import { showDialogAsync } from "../context/DialogContext.tsx";
 
 const IMAGE_PRELOAD_TIMEOUT_MS = 20000;
+
+function getReferencedLiveBackgrounds(games: any[], installs: any[]): string[] {
+  const urls = new Set<string>();
+  const add = (url?: string) => {
+    if (url && /\.(mp4|webm)(?:[?#]|$)/i.test(url)) urls.add(url);
+  };
+
+  games.forEach((game: any) => {
+    add(game?.assets?.game_live_background);
+  });
+  installs.forEach((install: any) => add(install?.game_background));
+
+  return Array.from(urls);
+}
+
+async function cleanupLiveBackgroundCache(games: any[], installs: any[]): Promise<void> {
+  if (!window.navigator.platform.includes("Linux") || games.length === 0) return;
+
+  try {
+    await invoke<number>("cleanup_live_background_cache", {
+      urls: getReferencedLiveBackgrounds(games, installs),
+    });
+  } catch (error) {
+    console.warn("Failed to clean live wallpaper cache:", error);
+  }
+}
 
 export interface NetworkStatus {
   status: "online" | "slow" | "offline";
@@ -180,12 +206,11 @@ export function startInitialLoad(opts: LoaderOptions): LoaderController {
       const games = opts.getGamesInfo() || [];
       const installs = opts.getInstalls ? (opts.getInstalls() || []) : [];
       const gameBackgrounds: string[] = games.map((g: any) => g?.assets?.game_background).filter(Boolean);
-      // Skip live backgrounds on Linux - video backgrounds not supported
-      const gameLiveBackgrounds: string[] = isLinux ? [] : games.map((g: any) => g?.assets?.game_live_background).filter(Boolean);
+      const gameLiveBackgrounds: string[] = games.map((g: any) => g?.assets?.game_live_background).filter(Boolean);
       const gameIcons: string[] = games.map((g: any) => g?.assets?.game_icon).filter(Boolean);
       const installBackgrounds: string[] = installs.map((i: any) => i?.game_background).filter(Boolean);
       const installIcons: string[] = installs.map((i: any) => i?.game_icon).filter(Boolean);
-      // Deduplicate all URLs - live backgrounds are preloaded first for immediate use (if not on Linux)
+      // Deduplicate all URLs - live backgrounds are preloaded first for immediate use
       const images = Array.from(new Set([
         ...gameLiveBackgrounds,
         ...gameBackgrounds,
@@ -213,6 +238,7 @@ export function startInitialLoad(opts: LoaderOptions): LoaderController {
           }),
         ]);
       } catch (e) { console.error("Error during image preloading:", e); }
+      await cleanupLiveBackgroundCache(games, installs);
       if (cancelled) return;
       opts.setProgress(100, translate("loading_screen.initializing"));
 
@@ -412,7 +438,7 @@ export class NetworkMonitor {
       const games = this.recoveryOpts.getGamesInfo() || [];
       const installs = this.recoveryOpts.getInstalls ? (this.recoveryOpts.getInstalls() || []) : [];
       const gameBackgrounds: string[] = games.map((g: any) => g?.assets?.game_background).filter(Boolean);
-      const gameLiveBackgrounds: string[] = isLinux ? [] : games.map((g: any) => g?.assets?.game_live_background).filter(Boolean);
+      const gameLiveBackgrounds: string[] = games.map((g: any) => g?.assets?.game_live_background).filter(Boolean);
       const gameIcons: string[] = games.map((g: any) => g?.assets?.game_icon).filter(Boolean);
       const installBackgrounds: string[] = installs.map((i: any) => i?.game_background).filter(Boolean);
       const installIcons: string[] = installs.map((i: any) => i?.game_icon).filter(Boolean);

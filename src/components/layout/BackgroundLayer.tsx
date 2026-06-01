@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useLayoutEffect, useRef} from "react";
-import {getPreloadedImage, isImageFailed, isImagePreloaded, isLinux, isVideoUrl, preloadImage} from "../../utils/imagePreloader";
+import {disposeVideoElement, getPlayableVideoUrl, getPreloadedImage, isImageFailed, isImagePreloaded, isLinux, isVideoUrl, preloadImage} from "../../utils/imagePreloader";
 
 interface BackgroundLayerProps {
   currentSrc: string;
@@ -12,12 +12,27 @@ interface BackgroundLayerProps {
   onMainLoad?: () => void;
 }
 
-const isVideo = (src?: string) => !!src && isVideoUrl(src) && !isLinux;
+const isVideo = (src?: string) => !!src && isVideoUrl(src);
 
 // helper to detect MP4 specifically (for treating MP4 looping differently)
 const isMp4 = (src?: string) => {
   const normalized = src?.split("?")[0]?.split("#")[0]?.toLowerCase() || "";
   return normalized.endsWith(".mp4");
+};
+
+const removeMediaElement = (element?: HTMLImageElement | HTMLVideoElement | null) => {
+  if (!element) return;
+  if (element instanceof HTMLVideoElement) {
+    disposeVideoElement(element);
+  } else {
+    element.remove();
+  }
+};
+
+const clearMediaContainer = (container?: HTMLDivElement | null) => {
+  if (!container) return;
+  container.querySelectorAll("video").forEach(disposeVideoElement);
+  container.innerHTML = "";
 };
 
 const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
@@ -34,12 +49,13 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
   const previousContainerRef = useRef<HTMLDivElement | null>(null);
   const currentElementRef = useRef<HTMLImageElement | HTMLVideoElement | null>(null);
   const currentSrcRef = useRef<string>("");
+  const linuxLoopStandbyRef = useRef<HTMLVideoElement | null>(null);
   // Track pending preload to prevent race condition on Linux where effect re-runs
   // before preload completes, causing duplicate image appends
   const pendingPreloadRef = useRef<string | null>(null);
 
-  // MP4 loop restart handler
-  const restartMp4 = useCallback(() => {
+  // MP4 loop restart handler for platforms where native MP4 looping is unreliable.
+  const restartVideo = useCallback(() => {
     const el = currentElementRef.current;
     if (el && el instanceof HTMLVideoElement) {
       try {
@@ -49,6 +65,63 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
         // ignore
       }
     }
+  }, []);
+
+  const enableSeamlessLinuxLoop = useCallback((video: HTMLVideoElement, src: string, container: HTMLDivElement, className: string) => {
+    if (!isLinux) return;
+
+    const standby = document.createElement("video");
+    standby.src = getPlayableVideoUrl(src);
+    standby.className = className;
+    standby.muted = true;
+    standby.playsInline = true;
+    standby.preload = "auto";
+    standby.autoplay = false;
+    standby.loop = false;
+    standby.style.opacity = "0";
+    container.insertBefore(standby, video);
+    standby.load();
+    linuxLoopStandbyRef.current = standby;
+
+    const rotate = (active: HTMLVideoElement, next: HTMLVideoElement) => {
+      active.onended = () => {
+        if (currentSrcRef.current !== src || currentElementRef.current !== active) {
+          disposeVideoElement(next);
+          return;
+        }
+
+        active.removeAttribute("id");
+        next.id = "app-bg";
+        next.style.opacity = "";
+        next.classList.remove("animate-bg-fade-in");
+        currentElementRef.current = next;
+        linuxLoopStandbyRef.current = active;
+
+        active.onended = null;
+        active.style.opacity = "0";
+        active.classList.remove("animate-bg-fade-in");
+        container.insertBefore(active, next);
+        try {
+          active.pause();
+          active.currentTime = 0;
+          active.load();
+        } catch { /* ignore */ }
+
+        next.play().catch(() => { });
+        rotate(next, active);
+      };
+    };
+
+    rotate(video, standby);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      removeMediaElement(linuxLoopStandbyRef.current);
+      linuxLoopStandbyRef.current = null;
+      clearMediaContainer(currentContainerRef.current);
+      clearMediaContainer(previousContainerRef.current);
+    };
   }, []);
 
   // Create and configure video element from preloaded or new
@@ -61,7 +134,7 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
       video = preloaded.cloneNode(true) as HTMLVideoElement;
     } else {
       video = document.createElement("video");
-      video.src = src;
+      video.src = getPlayableVideoUrl(src);
     }
 
     video.className = className;
@@ -70,11 +143,15 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
     video.preload = "auto";
     video.autoplay = false;
 
-    if (isMp4(src)) {
+    if (isLinux) {
       video.loop = false;
-      video.onended = restartMp4;
+      video.onended = null;
+    } else if (isMp4(src)) {
+      video.loop = false;
+      video.onended = restartVideo;
     } else {
       video.loop = true;
+      video.onended = null;
     }
 
     if (onLoad) {
@@ -82,7 +159,7 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
     }
 
     return video;
-  }, [restartMp4]);
+  }, [restartVideo]);
 
   // Create and configure image element from preloaded or new
   const createImageElement = useCallback((src: string, className: string, onLoad?: () => void): HTMLImageElement => {
@@ -129,6 +206,8 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
     const srcAtCallTime = currentSrc;
     currentSrcRef.current = srcAtCallTime;
     pendingPreloadRef.current = null;
+    removeMediaElement(linuxLoopStandbyRef.current);
+    linuxLoopStandbyRef.current = null;
 
     const baseClass = `w-full h-screen object-cover object-center absolute inset-0 transition-transform duration-300 ease-out will-change-transform`;
     const oldElement = currentElementRef.current;
@@ -136,13 +215,13 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
     element.id = "app-bg";
 
     const revealImage = () => {
-      if (currentSrcRef.current !== srcAtCallTime || currentElementRef.current !== element) { element.remove(); return; }
+      if (currentSrcRef.current !== srcAtCallTime || currentElementRef.current !== element) { removeMediaElement(element); return; }
       // No void offsetWidth needed — this is a fresh element so there's no stale animation
       // state to reset. The bgFadeIn keyframe (0% { opacity:0 }) defines the initial state,
       // so the browser starts the animation correctly without a forced layout.
       element.style.opacity = "";
       element.classList.add("animate-bg-fade-in");
-      if (oldElement && oldElement.parentNode) { setTimeout(() => { if (oldElement.parentNode) oldElement.remove(); }, 350); }
+      if (oldElement && oldElement.parentNode) { setTimeout(() => { if (oldElement.parentNode) removeMediaElement(oldElement); }, 350); }
     };
 
     element.style.opacity = "0";
@@ -178,8 +257,9 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
 
     if (!currentSrc) {
       // Only clear if source becomes empty
-      container.innerHTML = "";
+      clearMediaContainer(container);
       currentElementRef.current = null;
+      linuxLoopStandbyRef.current = null;
       return;
     }
 
@@ -193,6 +273,8 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
       }
 
       pendingPreloadRef.current = null;
+      removeMediaElement(linuxLoopStandbyRef.current);
+      linuxLoopStandbyRef.current = null;
 
       let element: HTMLImageElement | HTMLVideoElement;
 
@@ -212,12 +294,13 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
         // Append new video (hidden) alongside old one temporarily
         container.appendChild(element);
         currentElementRef.current = element;
+        enableSeamlessLinuxLoop(element, srcAtCallTime, container, baseClass);
 
         // Function to reveal the video once it's ready
         const revealVideo = () => {
           // Guard: ensure source hasn't changed and this is still the current element
           if (currentSrcRef.current !== srcAtCallTime || currentElementRef.current !== element) {
-            element.remove();
+            removeMediaElement(element);
             return;
           }
 
@@ -243,7 +326,7 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
           if (oldElement && oldElement.parentNode) {
             setTimeout(() => {
               if (oldElement.parentNode) {
-                oldElement.remove();
+                removeMediaElement(oldElement);
               }
             }, 350); // Slightly longer than the 300ms fade animation
           }
@@ -292,7 +375,7 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
         const revealImage = () => {
           // Guard: ensure source hasn't changed
           if (currentSrcRef.current !== srcAtCallTime || currentElementRef.current !== element) {
-            element.remove();
+            removeMediaElement(element);
             return;
           }
 
@@ -306,7 +389,7 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
           if (oldElement && oldElement.parentNode) {
             setTimeout(() => {
               if (oldElement.parentNode) {
-                oldElement.remove();
+                removeMediaElement(oldElement);
               }
             }, 350);
           }
@@ -348,7 +431,7 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
       const srcToPreload = currentSrc;
       preloadImage(srcToPreload).then(() => createAndAppend(srcToPreload));
     }
-  }, [currentSrc, bgVersion, createVideoElement, createImageElement, onMainLoad]);
+  }, [currentSrc, bgVersion, createVideoElement, createImageElement, enableSeamlessLinuxLoop, onMainLoad]);
 
   // Effect to handle previous background (for transitions)
   useEffect(() => {
@@ -356,9 +439,13 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
     if (!container) return;
 
     // Clear previous content
-    container.innerHTML = "";
+    clearMediaContainer(container);
 
     if (!transitioning || !previousSrc) return;
+
+    // The current container keeps the actual old Linux video alive throughout
+    // its crossfade. A cloned previous video only opens an extra decoder.
+    if (isLinux && isVideo(previousSrc)) return;
 
     const baseClass = `w-full h-screen object-cover object-center absolute inset-0 transition-none animate-bg-fade-out ${(popupOpen || pageOpen) ? "scale-[1.03]" : ""}`;
 
@@ -399,6 +486,8 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
 
       container.appendChild(img);
     }
+
+    return () => clearMediaContainer(container);
   }, [transitioning, previousSrc, bgVersion, popupOpen, pageOpen]);
 
   // Effect to update popup scale without re-creating elements or touching the animation class.
