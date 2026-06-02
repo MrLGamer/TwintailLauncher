@@ -1,4 +1,4 @@
-use crate::utils::db_manager::{get_installs, get_manifest_info_by_id, get_settings, update_install_after_update_by_id, update_settings_default_fps_unlock_location, update_settings_default_game_location, update_settings_default_xxmi_location};
+use crate::utils::db_manager::{get_installs, get_manifest_info_by_id, get_settings, get_settings_linux_live_background_migrated, update_install_after_update_by_id, update_settings_default_fps_unlock_location, update_settings_default_game_location, update_settings_default_xxmi_location, update_settings_linux_live_background_migrated};
 #[cfg(target_os = "linux")]
 use crate::utils::db_manager::{
     create_installed_runner, get_installed_runner_info_by_version, get_installed_runners, update_installed_runner_is_installed_by_version,
@@ -399,19 +399,37 @@ pub fn sync_installed_runners(app: &AppHandle) {
 pub fn sync_install_backgrounds(app: &AppHandle) {
     if let Some(is) = get_installs(app) {
         log::debug!("Started background sync for {} installs", is.len());
+        #[cfg(target_os = "linux")]
+        let migrate_live_backgrounds = !get_settings_linux_live_background_migrated(app);
+        #[cfg(target_os = "linux")]
+        let mut migration_ready = true;
         for i in is {
-            let repm = match get_manifest_info_by_id(app, i.manifest_id.clone()) { Some(r) => r, None => continue };
+            let repm = match get_manifest_info_by_id(app, i.manifest_id.clone()) { Some(r) => r, None => {
+                #[cfg(target_os = "linux")]
+                { migration_ready = false; }
+                continue
+            } };
             let gm = get_manifest(app, repm.filename);
             if let Some(g) = gm {
-                let cur = match g.game_versions.iter().find(|e| e.metadata.version == i.version) { Some(v) => v, None => continue };
-                #[cfg(target_os = "linux")]
-                let is_live = false;
-                #[cfg(not(target_os = "linux"))]
+                let cur = match g.game_versions.iter().find(|e| e.metadata.version == i.version) { Some(v) => v, None => {
+                    #[cfg(target_os = "linux")]
+                    { migration_ready = false; }
+                    continue
+                } };
                 let is_live = i.game_background.ends_with(".webm") || i.game_background.ends_with(".mp4");
-                let bg = if is_live { cur.assets.game_live_background.clone().unwrap_or(cur.assets.game_background.clone()) } else { cur.assets.game_background.clone() };
-                if !i.ignore_updates && i.game_background != bg { update_install_after_update_by_id(app, i.id, i.name, i.game_icon, bg, i.version); }
+                #[cfg(target_os = "linux")]
+                let migrate_live = migrate_live_backgrounds && i.game_background == cur.assets.game_background && cur.assets.game_live_background.as_ref().is_some_and(|bg| !bg.is_empty());
+                #[cfg(not(target_os = "linux"))]
+                let migrate_live = false;
+                let bg = if is_live || migrate_live { cur.assets.game_live_background.clone().filter(|bg| !bg.is_empty()).unwrap_or(cur.assets.game_background.clone()) } else { cur.assets.game_background.clone() };
+                if (!i.ignore_updates || migrate_live) && i.game_background != bg { update_install_after_update_by_id(app, i.id, i.name, i.game_icon, bg, i.version); }
+            } else {
+                #[cfg(target_os = "linux")]
+                { migration_ready = false; }
             }
         }
+        #[cfg(target_os = "linux")]
+        if migrate_live_backgrounds && migration_ready { update_settings_linux_live_background_migrated(app); }
         log::debug!("Finished background sync for all installs");
     }
 }

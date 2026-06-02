@@ -54,9 +54,6 @@ pub fn run_game_update(h5: AppHandle, payload: DownloadGamePayload, job_id: Stri
         let vn = picked.metadata.versioned_name.clone();
         let vc = picked.metadata.version.clone();
         let ig = picked.assets.game_icon.clone();
-        #[cfg(target_os = "linux")]
-        let gb = picked.assets.game_background.clone();
-        #[cfg(not(target_os = "linux"))]
         let gb = if install.game_background.ends_with(".webm") || install.game_background.ends_with(".mp4") { if let Some(ref lbg) = picked.assets.game_live_background { if !lbg.is_empty() { lbg.clone() } else { picked.assets.game_background.clone() } } else { picked.assets.game_background.clone() } } else { picked.assets.game_background.clone() };
         let gbiz = gm.biz.clone();
 

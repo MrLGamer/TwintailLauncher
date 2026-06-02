@@ -121,8 +121,8 @@ const BackgroundControls: React.FC<BackgroundControlsProps> = ({
 
     if (!isVisible || availableBackgrounds.length === 0) return null;
 
-    // On Linux, if there's only one background (static), don't show controls at all
-    if (isLinux && !hasMultipleBackgrounds) return null;
+    // Keep the Linux static-only shortcut, but expose playback for a lone dynamic background.
+    if (isLinux && !hasMultipleBackgrounds && !isDynamicBackground) return null;
 
     return (
         <div

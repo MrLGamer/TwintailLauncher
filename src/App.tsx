@@ -25,6 +25,20 @@ import { toPercent } from "./utils/progress";
 import BackgroundControls from "./components/common/BackgroundControls";
 import { setTranslations, translate } from "./utils/i18n";
 
+const findGameForInstall = (games: any[], install?: any) => {
+    if (!install) return undefined;
+
+    return games.find((game: any) => game.manifest_id === install.manifest_id) ||
+        games.find((game: any) => game.game_versions?.some((version: any) =>
+            version.metadata?.version === install.version &&
+            (
+                version.metadata?.versioned_name === install.name ||
+                version.assets?.game_icon === install.game_icon ||
+                version.assets?.game_background === install.game_background ||
+                version.assets?.game_live_background === install.game_background
+            )
+        ));
+};
 
 export default class App extends React.Component<any, any> {
     loaderController?: { cancel: () => void };
@@ -377,7 +391,7 @@ export default class App extends React.Component<any, any> {
                             } as React.CSSProperties}>
                                 {this.state.installs.map((install: any, index: number) => {
                                     // Find corresponding game manifest info by manifest_id
-                                    const game = (this.state.gamesinfo || []).find((g: any) => g.manifest_id === install.manifest_id);
+                                    const game = findGameForInstall(this.state.gamesinfo || [], install);
                                     const latest = game?.latest_version ?? null;
                                     const hasUpdate = !!(latest && install?.version && latest !== install.version && !install?.ignore_updates && !install?.steam_imported);
                                     // Only apply slideInLeft animation during initial loading, not during drag reorder
@@ -415,11 +429,10 @@ export default class App extends React.Component<any, any> {
                                                     this.setGameIcon(install.game_icon);
 
                                                     // Find game manifest to get dynamic background if available
-                                                    const game = this.state.gamesinfo.find((g: any) => g.manifest_id === install.manifest_id);
-                                                    const dynamicBg = game?.assets?.game_live_background;
-                                                    const staticBg = game?.assets?.game_background || install.game_background;
-                                                    // Prefer dynamic background (video) over static
-                                                    const bestBackground = dynamicBg || staticBg;
+                                                    const game = findGameForInstall(this.state.gamesinfo, install);
+                                                    const version = game?.game_versions?.find((v: any) => v.metadata?.version === install.version);
+                                                    const assets = version?.assets || game?.assets;
+                                                    const bestBackground = install.game_background || assets?.game_live_background || assets?.game_background;
 
                                                     this.setBackground(bestBackground);
 
@@ -527,7 +540,7 @@ export default class App extends React.Component<any, any> {
                         })()}
                         hasUpdate={(() => {
                             const install = this.state.installs.find((i: any) => i.id === this.state.currentInstall);
-                            const game = this.state.gamesinfo.find((g: any) => g.manifest_id === install?.manifest_id);
+                            const game = findGameForInstall(this.state.gamesinfo, install);
                             const latest = game?.latest_version ?? null;
                             return !!(latest && install?.version && latest !== install.version && !install?.ignore_updates && !install?.steam_imported);
                         })()}
@@ -1131,17 +1144,19 @@ export default class App extends React.Component<any, any> {
         if (this.state.currentInstall) {
             const install = this.state.installs.find((i: any) => i.id === this.state.currentInstall);
             if (install) {
-                let game = this.state.gamesinfo.find((g: any) => g.manifest_id === install.manifest_id);
+                let game = findGameForInstall(this.state.gamesinfo, install);
                 if (!game) { console.warn(`Could not find game manifest for install: ${install.name} (${install.manifest_id})`); }
 
                 if (game) {
+                    const version = game.game_versions?.find((v: any) => v.metadata?.version === install.version);
+                    const assets = version?.assets || game.assets;
                     // Add dynamic background if available
-                    if (game.assets?.game_live_background) {
-                        addBg(game.assets.game_live_background, "Dynamic", true);
+                    if (assets?.game_live_background) {
+                        addBg(assets.game_live_background, "Dynamic", true);
                     }
                     // Add static background from game manifest
-                    if (game.assets?.game_background) {
-                        addBg(game.assets.game_background, "Static", false);
+                    if (assets?.game_background) {
+                        addBg(assets.game_background, "Static", false);
                     }
                 }
 

@@ -199,6 +199,12 @@ pub async fn init_db(app: &AppHandle, data_path: std::path::PathBuf) {
             sql: r#"ALTER TABLE settings ADD COLUMN app_lang TEXT DEFAULT 'en_US' NOT NULL;"#,
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 31,
+            description: "alter_settings_table_linux_live_background_migrated",
+            sql: r#"ALTER TABLE settings ADD COLUMN linux_live_background_migrated bool DEFAULT false NOT NULL;"#,
+            kind: MigrationKind::Up,
+        },
     ];
 
     let mut migrations = add_migrations("db", migrationsl);
@@ -276,6 +282,26 @@ pub fn update_settings_default_game_location(app: &AppHandle, path: String) {
     run_async_command(async {
         let db = app.state::<DbInstances>().0.lock().await.get("db").unwrap().clone();
         let query = query("UPDATE settings SET 'default_game_path' = $1 WHERE id = 1").bind(path);
+        query.execute(&db).await.unwrap();
+    });
+}
+
+pub fn get_settings_linux_live_background_migrated(app: &AppHandle) -> bool {
+    let mut migrated = false;
+    run_async_command(async {
+        let db = app.state::<DbInstances>().0.lock().await.get("db").unwrap().clone();
+        let query = query("SELECT linux_live_background_migrated FROM settings WHERE id = 1");
+        if let Some(row) = query.fetch_optional(&db).await.unwrap() {
+            migrated = row.get("linux_live_background_migrated");
+        }
+    });
+    migrated
+}
+
+pub fn update_settings_linux_live_background_migrated(app: &AppHandle) {
+    run_async_command(async {
+        let db = app.state::<DbInstances>().0.lock().await.get("db").unwrap().clone();
+        let query = query("UPDATE settings SET 'linux_live_background_migrated' = true WHERE id = 1");
         query.execute(&db).await.unwrap();
     });
 }
