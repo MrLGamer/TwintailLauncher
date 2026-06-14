@@ -1,7 +1,7 @@
 use crate::utils::models::{GameManifest, GlobalSettings, LauncherInstall};
 use crate::utils::{apply_xxmi_tweaks,get_mi_path_from_game,prevent_system_idle,show_dialog_with_callback};
 use std::process::{Command, Stdio};
-use tauri::{AppHandle, Emitter, Error};
+use tauri::{AppHandle, Runtime, Emitter, Error};
 use crate::utils::db_manager::{update_install_last_played_by_id,update_install_total_playtime_by_id};
 use crate::utils::discord_rpc;
 use fischl::utils::is_process_running;
@@ -12,9 +12,11 @@ use crate::utils::{get_steam_appid, get_steam_tool_appid, is_runner_lower, is_us
 use std::os::unix::process::CommandExt;
 #[cfg(target_os = "linux")]
 use tauri::Manager;
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 
 #[cfg(target_os = "linux")]
-pub fn launch(app: &AppHandle, install: LauncherInstall, gm: GameManifest, gs: GlobalSettings) -> Result<bool, Error> {
+pub fn launch<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, gm: GameManifest, gs: GlobalSettings) -> Result<bool, Error> {
     let Some(rm) = get_compatibility(&app, &runner_from_runner_version(app, install.runner_version.clone()).unwrap_or_default()) else { return Ok(false); };
     let is_proton = rm.display_name.to_ascii_lowercase().contains("proton") && !rm.display_name.to_ascii_lowercase().contains("wine");
     let mut compat_config = update_steam_compat_config(vec![]);
@@ -39,13 +41,6 @@ pub fn launch(app: &AppHandle, install: LauncherInstall, gm: GameManifest, gs: G
     #[cfg(debug_assertions)]
     let reaper = app.path().resource_dir()?.join("resources/reaper").to_str().unwrap().to_string();
     let appid = get_steam_appid();
-    let endfield_can_bypass = gm.biz == "endfield_global" && install.runner_version.ends_with("-proton-ge") && {
-        let v = install.runner_version.strip_suffix("-proton-ge").unwrap_or("");
-        let parts: Vec<&str> = v.split('.').collect();
-        let major: u32 = parts.get(0).and_then(|s| s.parse().ok()).unwrap_or(0);
-        let minor: u32 = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
-        major > 10 || (major == 10 && minor >= 32)
-    };
 
     if !steamrtp.exists() {
         log::info!("Attempted to launch {} with broken SteamRT (ToolID: {})! Pressing Repair SteamLinuxRuntime button in application settings is recommended.", install.name, toolid);
@@ -59,7 +54,7 @@ pub fn launch(app: &AppHandle, install: LauncherInstall, gm: GameManifest, gs: G
         return Ok(false);
     }
 
-    if cpo.override_runner.linux.enabled && !cpo.override_runner.linux.runner_version.is_empty() && !is_using_overriden_runner(install.runner_version.clone(), cpo.override_runner.linux.runner_version.clone()) && !endfield_can_bypass {
+    if cpo.override_runner.linux.enabled && !cpo.override_runner.linux.runner_version.is_empty() && !is_using_overriden_runner(install.runner_version.clone(), cpo.override_runner.linux.runner_version.clone()) {
         log::info!("Attempted to launch {} with runner version {} while compatibility override is set to {}!", install.name, install.runner_version, cpo.override_runner.linux.runner_version);
         show_dialog_with_callback(app, "warning", "TwintailLauncher", "dialogs.launch_runner_version_required", Some(vec!["dialogs.buttons.i_understand"]), None, Some(std::collections::HashMap::from([("install_name", install.name.as_str()), ("runner_version", install.runner_version.as_str()), ("required_runner", cpo.override_runner.linux.runner_version.as_str())])));
         return Ok(false);
@@ -123,7 +118,7 @@ pub fn launch(app: &AppHandle, install: LauncherInstall, gm: GameManifest, gs: G
 
     let mut args = install.launch_args.clone();
     let xxmi_forced = install.use_xxmi && (gm.biz == "wuwa_global" || gm.biz == "endfield_global");
-    if install.use_xxmi && gm.biz == "wuwa_global" { args = args.split_whitespace().filter(|a| gm.extra.graphics_api_options.options.iter().all(|o| o.value.as_str() != *a)).collect::<Vec<_>>().join(" "); if !args.is_empty() { args += " "; } args += "-dx11 -ENGINEINI=Kuro_Please_Add_Force_LOD0_For_Characters_To_Settings_Engine.ini"; }
+    if install.use_xxmi && gm.biz == "wuwa_global" { args = args.split_whitespace().filter(|a| gm.extra.graphics_api_options.options.iter().all(|o| o.value.as_str() != *a)).collect::<Vec<_>>().join(" "); if !args.is_empty() { args += " "; } args += "-dx11"; }
     if install.use_xxmi && gm.biz == "endfield_global" { args = args.split_whitespace().filter(|a| gm.extra.graphics_api_options.options.iter().all(|o| o.value.as_str() != *a)).collect::<Vec<_>>().join(" "); if !args.is_empty() { args += " "; } args += "-force-d3d11"; }
     if gm.extra.switches.graphics_api && !xxmi_forced && !args.split_whitespace().any(|a| gm.extra.graphics_api_options.options.iter().any(|o| o.value.as_str() == a)) && !install.graphics_api.is_empty() { if !args.is_empty() { args += " "; } args += &install.graphics_api; }
 
@@ -213,7 +208,7 @@ pub fn launch(app: &AppHandle, install: LauncherInstall, gm: GameManifest, gs: G
         let mut command = format!("{c}").replace("%command%", default_command.clone().to_string().as_str()).replace("%appid%", appid.clone().to_string().as_str()).replace("%reaper%", reaper.clone().as_str()).replace("%steamrt_path%", steamrt_path.clone().as_str()).replace("%steamrt%", steamrt.clone().as_str()).replace("%prefix%", prefix.clone().as_str()).replace("%runner_dir%", runner.clone().as_str()).replace("%runner%", &*(runner.clone() + "/" + wine64.as_str())).replace("%install_dir%", dir.clone().as_str()).replace("%game_exe%", &*(dir.clone() + "/" + exe.clone().as_str()));
 
         let xxmi_forced = install.use_xxmi && (gm.biz == "wuwa_global" || gm.biz == "endfield_global");
-        if install.use_xxmi && gm.biz == "wuwa_global" { args = args.split_whitespace().filter(|a| gm.extra.graphics_api_options.options.iter().all(|o| o.value.as_str() != *a)).collect::<Vec<_>>().join(" "); if !args.is_empty() { args += " "; } args += "-dx11 -ENGINEINI=Kuro_Please_Add_Force_LOD0_For_Characters_To_Settings_Engine.ini"; }
+        if install.use_xxmi && gm.biz == "wuwa_global" { args = args.split_whitespace().filter(|a| gm.extra.graphics_api_options.options.iter().all(|o| o.value.as_str() != *a)).collect::<Vec<_>>().join(" "); if !args.is_empty() { args += " "; } args += "-dx11"; }
         if install.use_xxmi && gm.biz == "endfield_global" { args = args.split_whitespace().filter(|a| gm.extra.graphics_api_options.options.iter().all(|o| o.value.as_str() != *a)).collect::<Vec<_>>().join(" "); if !args.is_empty() { args += " "; } args += "-force-d3d11"; }
         if gm.extra.switches.graphics_api && !xxmi_forced && !args.split_whitespace().any(|a| gm.extra.graphics_api_options.options.iter().any(|o| o.value.as_str() == a)) && !install.graphics_api.is_empty() { if !args.is_empty() { args += " "; } args += &install.graphics_api; }
         if !args.is_empty() { command = format!("{c} {args}").replace("%command%", default_command.clone().to_string().as_str()).replace("%appid%", appid.clone().to_string().as_str()).replace("%reaper%", reaper.clone().as_str()).replace("%steamrt_path%", steamrt_path.clone().as_str()).replace("%steamrt%", steamrt.clone().as_str()).replace("%prefix%", prefix.clone().as_str()).replace("%runner_dir%", runner.clone().as_str()).replace("%runner%", &*(runner.clone() + "/" + wine64.as_str())).replace("%install_dir%", dir.clone().as_str()).replace("%game_exe%", &*(dir.clone() + "/" + exe.clone().as_str())); }
@@ -288,7 +283,7 @@ pub fn launch(app: &AppHandle, install: LauncherInstall, gm: GameManifest, gs: G
 }
 
 #[cfg(target_os = "linux")]
-fn load_xxmi(app: &AppHandle, install: LauncherInstall, prefix: String, xxmi_path: String, runner: String, wine64: String, game: String, is_proton: bool) {
+fn load_xxmi<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, prefix: String, xxmi_path: String, runner: String, wine64: String, game: String, is_proton: bool) {
     if install.use_xxmi {
         let appc = app.clone();
         // Prevent "App is not responding" by waiting in a separate thread
@@ -303,13 +298,13 @@ fn load_xxmi(app: &AppHandle, install: LauncherInstall, prefix: String, xxmi_pat
             // Apply the installation tweaks
             let data = apply_xxmi_tweaks(mi_pathbuf, install.xxmi_config);
             crate::utils::db_manager::update_install_xxmi_config_by_id(&app, install.id, data);
-            if mipath.to_ascii_lowercase().as_str() == "wwmi" { crate::utils::apply_wwmi_tweaks(game_dir.to_path_buf()); }
+            if mipath.to_ascii_lowercase().as_str() == "wwmi" { crate::utils::apply_wwmi_tweaks(game_dir.to_path_buf(), xxmi_path.clone()); }
 
             let mut cmd = Command::new("bash");
             cmd.arg("-c");
             cmd.arg(&command);
 
-            let loader_mode = if mipath == "efmi" { "inject" } else { "hook" };
+            let loader_mode = if mipath == "efmi" || mipath == "wwmi" { "inject" } else { "hook" };
             cmd.env("LOADER_MODE", loader_mode);
             cmd.env("WINEARCH", "win64");
             cmd.env("WINEPREFIX", prefix.clone() + "/pfx");
@@ -352,7 +347,7 @@ fn load_xxmi(app: &AppHandle, install: LauncherInstall, prefix: String, xxmi_pat
 }
 
 #[cfg(target_os = "linux")]
-fn load_fps_unlock(app: &AppHandle, install: LauncherInstall, biz: String, prefix: String, fpsunlock_path: String, game_path: String, runner: String, wine64: String, is_proton: bool) {
+fn load_fps_unlock<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, biz: String, prefix: String, fpsunlock_path: String, game_path: String, runner: String, wine64: String, is_proton: bool) {
     if install.use_fps_unlock {
         let appc = app.clone();
         // Prevent "App is not responding" by waiting in a separate thread
@@ -407,7 +402,7 @@ fn load_fps_unlock(app: &AppHandle, install: LauncherInstall, biz: String, prefi
 }
 
 #[cfg(target_os = "linux")]
-fn run_winetricks(app: &AppHandle, install: LauncherInstall, steamrt: String, reaper: String, appid: u32, runner: String, wine64: String, prefix: String, install_dir: String, verbs: Vec<String>) -> std::thread::JoinHandle<bool> {
+fn run_winetricks<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, steamrt: String, reaper: String, appid: u32, runner: String, wine64: String, prefix: String, install_dir: String, verbs: Vec<String>) -> std::thread::JoinHandle<bool> {
     let appc = app.clone();
     // Prevent "App is not responding" by waiting in a separate thread
     std::thread::spawn(move || {
@@ -481,7 +476,7 @@ fn run_winetricks(app: &AppHandle, install: LauncherInstall, steamrt: String, re
 }
 
 #[cfg(target_os = "windows")]
-pub fn launch(app: &AppHandle, install: LauncherInstall, gm: GameManifest, gs: GlobalSettings) -> Result<bool, Error> {
+pub fn launch<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, gm: GameManifest, gs: GlobalSettings) -> Result<bool, Error> {
     let dirp = std::path::Path::new(&install.directory.clone()).to_path_buf();
     let dir = dirp.to_str().unwrap().to_string();
     let game = gm.paths.exe_filename.clone();
@@ -494,6 +489,7 @@ pub fn launch(app: &AppHandle, install: LauncherInstall, gm: GameManifest, gs: G
         let mut cmd = Command::new("powershell");
         cmd.arg("-Command");
         cmd.arg(&command);
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
 
         cmd.stdout(Stdio::inherit());
         cmd.stderr(Stdio::inherit());
@@ -526,7 +522,7 @@ pub fn launch(app: &AppHandle, install: LauncherInstall, gm: GameManifest, gs: G
         let mut command = format!("Start-Process -FilePath '{full_path_str}' -WorkingDirectory '{dir}' -Verb RunAs");
 
         let xxmi_forced = install.use_xxmi && (gm.biz == "wuwa_global" || gm.biz == "endfield_global");
-        if install.use_xxmi && gm.biz == "wuwa_global" { args = args.split_whitespace().filter(|a| gm.extra.graphics_api_options.options.iter().all(|o| o.value.as_str() != *a)).collect::<Vec<_>>().join(" "); if !args.is_empty() { args += " "; } args += "-dx11 -ENGINEINI=Kuro_Please_Add_Force_LOD0_For_Characters_To_Settings_Engine.ini"; }
+        if install.use_xxmi && gm.biz == "wuwa_global" { args = args.split_whitespace().filter(|a| gm.extra.graphics_api_options.options.iter().all(|o| o.value.as_str() != *a)).collect::<Vec<_>>().join(" "); if !args.is_empty() { args += " "; } args += "-dx11"; }
         if install.use_xxmi && gm.biz == "endfield_global" { args = args.split_whitespace().filter(|a| gm.extra.graphics_api_options.options.iter().all(|o| o.value.as_str() != *a)).collect::<Vec<_>>().join(" "); if !args.is_empty() { args += " "; } args += "-force-d3d11"; }
         if gm.extra.switches.graphics_api && !xxmi_forced && !args.split_whitespace().any(|a| gm.extra.graphics_api_options.options.iter().any(|o| o.value.as_str() == a)) && !install.graphics_api.is_empty() { if !args.is_empty() { args += " "; } args += &install.graphics_api; }
         if !args.is_empty() { command = format!("Start-Process -FilePath '{full_path_str}' -ArgumentList '{args}' -WorkingDirectory '{dir}' -Verb RunAs"); }
@@ -534,6 +530,7 @@ pub fn launch(app: &AppHandle, install: LauncherInstall, gm: GameManifest, gs: G
         let mut cmd = Command::new("powershell");
         cmd.arg("-Command");
         cmd.arg(&command);
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
 
         cmd.stdout(Stdio::inherit());
         cmd.stderr(Stdio::inherit());
@@ -579,7 +576,7 @@ pub fn launch(app: &AppHandle, install: LauncherInstall, gm: GameManifest, gs: G
         let mut command = format!("Start-Process -FilePath '{c}' -WorkingDirectory '{dir}' -Verb RunAs").replace("%install_dir%", dir).replace("%game_exe%", full_path_str.as_str());
 
         let xxmi_forced = install.use_xxmi && (gm.biz == "wuwa_global" || gm.biz == "endfield_global");
-        if install.use_xxmi && gm.biz == "wuwa_global" { args = args.split_whitespace().filter(|a| gm.extra.graphics_api_options.options.iter().all(|o| o.value.as_str() != *a)).collect::<Vec<_>>().join(" "); if !args.is_empty() { args += " "; } args += "-dx11 -ENGINEINI=Kuro_Please_Add_Force_LOD0_For_Characters_To_Settings_Engine.ini"; }
+        if install.use_xxmi && gm.biz == "wuwa_global" { args = args.split_whitespace().filter(|a| gm.extra.graphics_api_options.options.iter().all(|o| o.value.as_str() != *a)).collect::<Vec<_>>().join(" "); if !args.is_empty() { args += " "; } args += "-dx11"; }
         if install.use_xxmi && gm.biz == "endfield_global" { args = args.split_whitespace().filter(|a| gm.extra.graphics_api_options.options.iter().all(|o| o.value.as_str() != *a)).collect::<Vec<_>>().join(" "); if !args.is_empty() { args += " "; } args += "-force-d3d11"; }
         if gm.extra.switches.graphics_api && !xxmi_forced && !args.split_whitespace().any(|a| gm.extra.graphics_api_options.options.iter().any(|o| o.value.as_str() == a)) && !install.graphics_api.is_empty() { if !args.is_empty() { args += " "; } args += &install.graphics_api; }
         if !args.is_empty() { command = format!("Start-Process -FilePath '{c}' -ArgumentList '{args}' -WorkingDirectory '{dir}' -Verb RunAs").replace("%install_dir%", dir).replace("%game_exe%", full_path_str.as_str()); }
@@ -587,6 +584,7 @@ pub fn launch(app: &AppHandle, install: LauncherInstall, gm: GameManifest, gs: G
         let mut cmd = Command::new("powershell");
         cmd.arg("-Command");
         cmd.arg(&command);
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
 
         cmd.stdout(Stdio::inherit());
         cmd.stderr(Stdio::inherit());
@@ -624,7 +622,7 @@ pub fn launch(app: &AppHandle, install: LauncherInstall, gm: GameManifest, gs: G
 }
 
 #[cfg(target_os = "windows")]
-fn load_xxmi(app: &AppHandle, install: LauncherInstall, xxmi_path: String, game: String) {
+fn load_xxmi<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, xxmi_path: String, game: String) {
     if install.use_xxmi {
         let xxmi_path = xxmi_path.trim_matches('\\');
         let mipath = get_mi_path_from_game(game.clone()).unwrap();
@@ -637,13 +635,14 @@ fn load_xxmi(app: &AppHandle, install: LauncherInstall, xxmi_path: String, game:
         // Apply the installation tweaks
         let data = apply_xxmi_tweaks(mi_pathbuf, install.xxmi_config);
         crate::utils::db_manager::update_install_xxmi_config_by_id(&app, install.id, data);
-        if mipath.to_ascii_lowercase().as_str() == "wwmi" { crate::utils::apply_wwmi_tweaks(game_dir.to_path_buf()); }
+        if mipath.to_ascii_lowercase().as_str() == "wwmi" { crate::utils::apply_wwmi_tweaks(game_dir.to_path_buf(), xxmi_path.to_string()); }
 
         let mut cmd = Command::new("powershell");
         cmd.arg("-Command");
         cmd.arg(&command);
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
 
-        let loader_mode = if mipath == "efmi" { "inject" } else { "hook" };
+        let loader_mode = if mipath == "efmi" || mipath == "wwmi" { "inject" } else { "hook" };
         cmd.env("LOADER_MODE", loader_mode);
         cmd.stdout(Stdio::null());
         cmd.stderr(Stdio::null());
@@ -681,6 +680,7 @@ fn load_fps_unlock(install: LauncherInstall, biz: String, game_path: String, fps
         let mut cmd = Command::new("powershell");
         cmd.arg("-Command");
         cmd.arg(&command);
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
 
         cmd.stdout(Stdio::null());
         cmd.stderr(Stdio::null());
@@ -705,7 +705,7 @@ fn load_fps_unlock(install: LauncherInstall, biz: String, game_path: String, fps
     }
 }
 
-fn start_playtime_tracker(app: &AppHandle, install: LauncherInstall, gm: GameManifest, exe_name: String) {
+fn start_playtime_tracker<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, gm: GameManifest, exe_name: String) {
     let app = app.clone();
     let install_id = install.id.clone();
     let base_playtime = install.total_playtime as u64;
@@ -745,10 +745,6 @@ fn start_playtime_tracker(app: &AppHandle, install: LauncherInstall, gm: GameMan
                 if install.show_discord_rpc { if let Some(ref mut client) = rpc_client { discord_rpc::terminate(client); } }
                 if install.disable_system_idle { drop(keepawake); }
                 app.emit("game_closed", install_id.clone()).unwrap();
-                if cfg!(target_os = "linux") && gm.biz != "wuwa_global" {
-                    if install.use_xxmi && is_process_running("3dmloader.exe") { let _ = Command::new("bash").args(["-c", "for pid in $(pgrep -f 3dmloader.exe); do kill -9 -$pid; done"]).spawn(); log::debug!("Killing 3dmloader.exe as game crashed! 2nd case"); }
-                    if install.use_fps_unlock && is_process_running("keqing_unlock.exe") { let _ = Command::new("bash").args(["-c", "for pid in $(pgrep -f keqing_unlock.exe); do kill -9 -$pid; done"]).spawn(); log::debug!("Killing keqing_unlock.exe as game crashed! 2nd case"); }
-                }
                 return;
             }
         }
