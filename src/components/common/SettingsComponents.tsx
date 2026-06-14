@@ -37,7 +37,7 @@ export const ModernToggle = ({ label, description, helpText, descriptionClassNam
             className={`flex flex-row items-center justify-between ${interactive ? "group cursor-pointer" : "cursor-not-allowed opacity-70"}`}
             onClick={interactive ? () => onChange(!checked) : undefined}
         >
-            <div className="flex flex-col gap-1 pr-4">
+            <div className="flex min-w-0 flex-1 flex-col gap-1 pr-4">
                 <div className="flex items-center gap-2">
                     <label className={`text-base font-medium transition-colors pointer-events-none ${interactive ? "text-white group-hover:text-purple-100" : "text-zinc-200"}`}>{label}</label>
                     {description && description.includes("help") ? null : (helpText && <div onClick={e => e.stopPropagation()}><HelpTooltip text={helpText} /></div>)}
@@ -52,7 +52,7 @@ export const ModernToggle = ({ label, description, helpText, descriptionClassNam
                     onChange(!checked);
                 }}
                 className={`
-                    w-12 h-7 rounded-full transition-all duration-300 relative flex items-center shadow-inner
+                    w-12 h-7 shrink-0 rounded-full transition-all duration-300 relative flex items-center shadow-inner
                     ${interactive ? "cursor-pointer" : "cursor-not-allowed"}
                     ${checked ? (interactive ? "bg-purple-600 shadow-[0_0_15px_rgba(147,51,234,0.4)]" : "bg-purple-700/70") : "bg-zinc-800"}
                 `}>

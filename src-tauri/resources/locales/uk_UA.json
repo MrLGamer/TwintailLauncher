@@ -44,6 +44,11 @@
     "linux.default_prefix_path.description": "Базова папка для префіксів Wine/Proton.",
     "linux.mangohud_config.label": "Конфігурація MangoHUD",
     "linux.mangohud_config.description": "Стандартний конфігураційний файл для MangoHUD.",
+    "linux.experimental_title": "Експериментальне",
+    "linux.live_backgrounds.label": "Увімкнути живі шпалери",
+    "linux.live_backgrounds.description": "Використовує кешовані динамічні відеошпалери в Linux. Для повного застосування потрібен перезапуск лаунчера.",
+    "linux.live_backgrounds_restart.title": "Потрібен перезапуск",
+    "linux.live_backgrounds_restart.message": "Перезапусти лаунчер, щоб повністю застосувати налаштування живих шпалер у Linux.",
     "linux.debug_title": "Допомога та налагодження",
     "linux.steamrt3_diagnostics": "Діагностика SteamLinuxRuntime 3",
     "linux.steamrt4_diagnostics": "Діагностика SteamLinuxRuntime 4",
@@ -512,4 +517,3 @@
     "repo_clone_failed": "Не вдалося клонувати репозиторій або у репозиторії відсутній маніфест!"
   }
 }
-

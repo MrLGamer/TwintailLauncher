@@ -44,6 +44,11 @@
     "linux.default_prefix_path.description": "Base diwectowy fow Wine/Pwoton pwefixes, nyaa~",
     "linux.mangohud_config.label": "MangoHUD Config",
     "linux.mangohud_config.description": "Defauwt configuwation fiwe fow MangoHUD, nya~ (mangoes awe yummy btwww!! :9)",
+    "linux.experimental_title": "Expewimentaw~",
+    "linux.live_backgrounds.label": "Enabwe wive wawwpapews",
+    "linux.live_backgrounds.description": "Use cached dynamic video wawwpapews on Winux. Needs a waunchew westawt to fuwwy appwy, nya~",
+    "linux.live_backgrounds_restart.title": "Westawt wequiwed",
+    "linux.live_backgrounds_restart.message": "Westawt da waunchew to fuwwy appwy da Winux wive wawwpapew setting, nya~",
 
     "linux.debug_title": "Hewp & Debugging (bugs awe scawy!! >_<)",
     "linux.steamrt3_diagnostics": "SteamWinuxWuntime 3 diagnostics (owie, dat sounds hawd...)",
