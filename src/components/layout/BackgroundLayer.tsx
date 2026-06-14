@@ -230,7 +230,7 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
     // queueMicrotask runs after useLayoutEffect but before browser paint,
     // so the animation class is applied before the first frame renders.
     queueMicrotask(revealImage);
-  }, [currentSrc, bgVersion, createImageElement, onMainLoad, popupOpen, pageOpen]);
+  }, [currentSrc, bgVersion, createImageElement, onMainLoad]);
 
   // Effect to handle current background
   useEffect(() => {
@@ -431,7 +431,7 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
       const srcToPreload = currentSrc;
       preloadImage(srcToPreload).then(() => createAndAppend(srcToPreload));
     }
-  }, [currentSrc, bgVersion, createVideoElement, createImageElement, enableSeamlessLinuxLoop, onMainLoad, popupOpen, pageOpen]);
+  }, [currentSrc, bgVersion, createVideoElement, createImageElement, enableSeamlessLinuxLoop, onMainLoad]);
 
   // Effect to handle previous background (for transitions)
   useEffect(() => {

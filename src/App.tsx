@@ -6,7 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import SidebarSettings from "./components/sidebar/SidebarSettings.tsx";
 import SidebarIconInstall from "./components/sidebar/SidebarIconInstall.tsx";
 import SidebarLink from "./components/sidebar/SidebarLink.tsx";
-import { preloadImages, isImagePreloaded, isVideoUrl } from "./utils/imagePreloader";
+import { preloadImages, isImagePreloaded, isLinux, isVideoUrl } from "./utils/imagePreloader";
 import AppLoadingScreen from "./components/AppLoadingScreen";
 import SidebarManifests from "./components/sidebar/SidebarManifests.tsx";
 import { determineButtonType } from "./utils/determineButtonType";
@@ -40,8 +40,7 @@ const findGameForInstall = (games: any[], install?: any) => {
         ));
 };
 
-const isLinuxPlatform = window.navigator.platform.includes("Linux");
-const linuxLiveBackgroundsEnabled = (settings: any) => !isLinuxPlatform || Boolean(settings?.linux_experimental_live_backgrounds);
+const linuxLiveBackgroundsEnabled = (settings: any) => !isLinux || Boolean(settings?.linux_experimental_live_backgrounds);
 
 const getInstallVersionAssets = (game: any, install?: any) => {
     const version = game?.game_versions?.find((v: any) => v.metadata?.version === install?.version);

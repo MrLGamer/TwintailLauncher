@@ -4,12 +4,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { Events } from "../constants/events.ts";
 import { registerEvents } from "./events.ts";
 import { translate } from "../utils/i18n";
-import { clearFailedImages, getFailedImageCount, isImagePreloaded } from "../utils/imagePreloader.ts";
+import { isLinux, clearFailedImages, getFailedImageCount, isImagePreloaded } from "../utils/imagePreloader.ts";
 import { showDialogAsync } from "../context/DialogContext.tsx";
 
 const IMAGE_PRELOAD_TIMEOUT_MS = 20000;
 
-const isLinux = window.navigator.platform.includes("Linux");
 const liveBackgroundsEnabled = (settings: any) => !isLinux || Boolean(settings?.linux_experimental_live_backgrounds);
 const isVideoUrl = (url?: string) => !!url && /\.(mp4|webm)(?:[?#]|$)/i.test(url);
 

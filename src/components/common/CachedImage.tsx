@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { cacheImage, disposeVideoElement, getPlayableVideoUrl, isImageFailed, isImagePreloaded, isLinux, isVideoUrl, preloadImage } from "../../utils/imagePreloader";
+import { cacheImage, isImageFailed, isImagePreloaded, isVideoUrl } from "../../utils/imagePreloader";
 
 interface CachedImageProps {
     src: string;
@@ -9,34 +9,11 @@ interface CachedImageProps {
 
 export function CachedImage({ src, alt = "", className = "" }: CachedImageProps) {
     const currentSrcRef = useRef(src);
-    const videoRef = useRef<HTMLVideoElement | null>(null);
     const [isReady, setIsReady] = useState(() => !!src && isImagePreloaded(src) && !isImageFailed(src));
 
     useEffect(() => {
         currentSrcRef.current = src;
         setIsReady(!!src && isImagePreloaded(src) && !isImageFailed(src));
-    }, [src]);
-
-    useEffect(() => {
-        if (!src || !isLinux || !isVideoUrl(src) || isImagePreloaded(src)) return;
-
-        let cancelled = false;
-        preloadImage(src).then(() => {
-            if (!cancelled && currentSrcRef.current === src && !isImageFailed(src)) {
-                setIsReady(true);
-            }
-        });
-
-        return () => {
-            cancelled = true;
-        };
-    }, [src]);
-
-    useEffect(() => {
-        const video = videoRef.current;
-        return () => {
-            if (video) disposeVideoElement(video);
-        };
     }, [src]);
 
     if (!src) {
@@ -48,32 +25,27 @@ export function CachedImage({ src, alt = "", className = "" }: CachedImageProps)
     return (
         <div className="contents" data-ready={isReady}>
             {isVideo ? (
-                isLinux && !isReady ? (
-                    <div className={className} />
-                ) : (
-                    <video
-                        key={`video-${src}`}
-                        ref={videoRef}
-                        src={getPlayableVideoUrl(src)}
-                        className={className}
-                        muted
-                        playsInline
-                        autoPlay
-                        loop
-                        preload="auto"
-                        onLoadedData={(e) => {
-                            if (currentSrcRef.current !== src) return;
-                            cacheImage(src, e.currentTarget, false);
-                            setIsReady(true);
-                            e.currentTarget.play().catch(() => { });
-                        }}
-                        onError={(e) => {
-                            if (currentSrcRef.current !== src) return;
-                            cacheImage(src, e.currentTarget, true);
-                            setIsReady(true);
-                        }}
-                    />
-                )
+                <video
+                    key={`video-${src}`}
+                    src={src}
+                    className={className}
+                    muted
+                    playsInline
+                    autoPlay
+                    loop
+                    preload="auto"
+                    onLoadedData={(e) => {
+                        if (currentSrcRef.current !== src) return;
+                        cacheImage(src, e.currentTarget, false);
+                        setIsReady(true);
+                        e.currentTarget.play().catch(() => { });
+                    }}
+                    onError={(e) => {
+                        if (currentSrcRef.current !== src) return;
+                        cacheImage(src, e.currentTarget, true);
+                        setIsReady(true);
+                    }}
+                />
             ) : (
                 <img
                     key={`img-${src}`}

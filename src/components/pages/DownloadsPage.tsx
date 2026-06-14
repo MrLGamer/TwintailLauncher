@@ -556,18 +556,7 @@ export default function DownloadsPage({
 
     // Get install info for banner
     const currentInstall = currentJob ? installs.find(i => i.id === currentJob.installId) : null;
-    const currentGame = currentInstall
-        ? gamesinfo.find((game: any) => game.manifest_id === currentInstall.manifest_id) ||
-            gamesinfo.find((game: any) => game.game_versions?.some((version: any) =>
-                version.metadata?.version === currentInstall.version &&
-                (
-                    version.metadata?.versioned_name === currentInstall.name ||
-                    version.assets?.game_icon === currentInstall.game_icon ||
-                    version.assets?.game_background === currentInstall.game_background ||
-                    version.assets?.game_live_background === currentInstall.game_background
-                )
-            ))
-        : null;
+    const currentGame = currentInstall ? gamesinfo.find((game: any) => game.manifest_id === currentInstall.manifest_id) : null;
     const currentVersionAssets = currentGame?.game_versions?.find((version: any) => version.metadata?.version === currentInstall?.version)?.assets;
     const staticBanner = currentVersionAssets?.game_background || currentGame?.assets?.game_background;
     const bannerImage = staticBanner || (currentInstall?.game_background && !isVideoUrl(currentInstall.game_background) ? currentInstall.game_background : "");
