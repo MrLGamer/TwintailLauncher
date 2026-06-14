@@ -6,7 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import SidebarSettings from "./components/sidebar/SidebarSettings.tsx";
 import SidebarIconInstall from "./components/sidebar/SidebarIconInstall.tsx";
 import SidebarLink from "./components/sidebar/SidebarLink.tsx";
-import { preloadImages, isImagePreloaded } from "./utils/imagePreloader";
+import { preloadImages, isImagePreloaded, isVideoUrl } from "./utils/imagePreloader";
 import AppLoadingScreen from "./components/AppLoadingScreen";
 import SidebarManifests from "./components/sidebar/SidebarManifests.tsx";
 import { determineButtonType } from "./utils/determineButtonType";
@@ -38,6 +38,38 @@ const findGameForInstall = (games: any[], install?: any) => {
                 version.assets?.game_live_background === install.game_background
             )
         ));
+};
+
+const isLinuxPlatform = window.navigator.platform.includes("Linux");
+const linuxLiveBackgroundsEnabled = (settings: any) => !isLinuxPlatform || Boolean(settings?.linux_experimental_live_backgrounds);
+
+const getInstallVersionAssets = (game: any, install?: any) => {
+    const version = game?.game_versions?.find((v: any) => v.metadata?.version === install?.version);
+    return version?.assets || game?.assets;
+};
+
+const getManifestBackground = (settings: any, assets: any) => {
+    if (!assets) return "";
+    return linuxLiveBackgroundsEnabled(settings)
+        ? (assets.game_live_background || assets.game_background || "")
+        : (assets.game_background || "");
+};
+
+const getEffectiveInstallBackground = (settings: any, games: any[], install?: any) => {
+    if (!install) return "";
+
+    const game = findGameForInstall(games, install);
+    const assets = getInstallVersionAssets(game, install);
+
+    if (linuxLiveBackgroundsEnabled(settings)) {
+        return install.game_background || assets?.game_live_background || assets?.game_background || "";
+    }
+
+    if (install.game_background && !isVideoUrl(install.game_background)) {
+        return install.game_background;
+    }
+
+    return assets?.game_background || "";
 };
 
 export default class App extends React.Component<any, any> {
@@ -350,6 +382,7 @@ export default class App extends React.Component<any, any> {
                             }
                         }}
                         imageVersion={this.state.imageVersion}
+                        liveBackgroundsEnabled={linuxLiveBackgroundsEnabled(this.state.globalSettings)}
                     />
                     <div className="h-full w-16 p-2 bg-black/50 flex flex-col items-center justify-start animate-slideInLeft relative z-30" style={{ animationDelay: '100ms' }}>
                         {/* Separate, centered section for the download/manifests toggle */}
@@ -402,7 +435,7 @@ export default class App extends React.Component<any, any> {
                                             <SidebarIconInstall
                                                 popup={this.state.openPopup}
                                                 icon={install.game_icon}
-                                                background={install.game_background}
+                                                background={getEffectiveInstallBackground(this.state.globalSettings, this.state.gamesinfo, install)}
                                                 name={install.name}
                                                 enabled={true}
                                                 id={install.id}
@@ -430,9 +463,8 @@ export default class App extends React.Component<any, any> {
 
                                                     // Find game manifest to get dynamic background if available
                                                     const game = findGameForInstall(this.state.gamesinfo, install);
-                                                    const version = game?.game_versions?.find((v: any) => v.metadata?.version === install.version);
-                                                    const assets = version?.assets || game?.assets;
-                                                    const bestBackground = install.game_background || assets?.game_live_background || assets?.game_background;
+                                                    const assets = getInstallVersionAssets(game, install);
+                                                    const bestBackground = getEffectiveInstallBackground(this.state.globalSettings, this.state.gamesinfo, install) || getManifestBackground(this.state.globalSettings, assets);
 
                                                     this.setBackground(bestBackground);
 
@@ -638,6 +670,7 @@ export default class App extends React.Component<any, any> {
                     downloadQueueState={this.state.downloadQueueState}
                     downloadProgressByJobId={this.state.downloadProgressByJobId}
                     installs={this.state.installs}
+                    gamesinfo={this.state.gamesinfo}
                     speedHistory={this.state.speedHistory}
                     onSpeedSample={this.handleSpeedSample}
                     onClearHistory={this.handleClearSpeedHistory}
@@ -701,6 +734,7 @@ export default class App extends React.Component<any, any> {
             fetchCompatibilityVersionsFiltered: this.fetchCompatibilityVersionsFiltered,
             fetchInstalledRunners: this.fetchInstalledRunners,
             fetchSteamRTStatus: this.fetchSteamRTStatus,
+            getSettings: () => this.state.globalSettings,
             getGamesInfo: () => this.state.gamesinfo,
             getInstalls: () => this.state.installs,
             preloadImages: (images, onProgress, preloaded) => preloadImages(images, onProgress, preloaded),
@@ -720,6 +754,7 @@ export default class App extends React.Component<any, any> {
             fetchCompatibilityVersionsFiltered: this.fetchCompatibilityVersionsFiltered,
             fetchInstalledRunners: this.fetchInstalledRunners,
             fetchSteamRTStatus: this.fetchSteamRTStatus,
+            getSettings: () => this.state.globalSettings,
             getGamesInfo: () => this.state.gamesinfo,
             getInstalls: () => this.state.installs,
             preloadImages: (images, onProgress, preloaded) => preloadImages(images, onProgress, preloaded),
@@ -867,7 +902,7 @@ export default class App extends React.Component<any, any> {
                     if (this.state.installs.length === 0) {
                         if (games.length > 0 && this.state.currentGame == "") {
                             // Use dynamic background if available, otherwise fall back to static
-                            let bg = gi[0].assets.game_live_background || gi[0].assets.game_background;
+                            let bg = getManifestBackground(this.state.globalSettings, gi[0].assets);
                             this.setCurrentGame(games[0].filename.replace(".json", ""));
                             this.setDisplayName(games[0].display_name);
                             this.setBackground(bg);
@@ -880,7 +915,7 @@ export default class App extends React.Component<any, any> {
                     } else {
                         this.setCurrentGame(games[0].filename.replace(".json", ""));
                         this.setDisplayName(this.state.installs[0].name);
-                        this.setBackground(this.state.installs[0].game_background);
+                        this.setBackground(getEffectiveInstallBackground(this.state.globalSettings, gi, this.state.installs[0]));
                         this.setGameIcon(this.state.installs[0].game_icon);
                         this.setCurrentInstall(this.state.installs[0].id);
                         this.fetchInstallResumeStates(this.state.installs[0].id);
@@ -905,7 +940,7 @@ export default class App extends React.Component<any, any> {
                 this.setState(() => ({ installs: gi }), () => {
                     // Also preload installed-specific assets (older/different versions)
                     try {
-                        const backgrounds: string[] = (this.state.installs || []).map((i: any) => i?.game_background).filter((s: any) => !!s);
+                        const backgrounds: string[] = (this.state.installs || []).map((i: any) => getEffectiveInstallBackground(this.state.globalSettings, this.state.gamesinfo, i)).filter((s: any) => !!s);
                         const icons: string[] = (this.state.installs || []).map((i: any) => i?.game_icon).filter((s: any) => !!s);
                         const images = Array.from(new Set([...(backgrounds as string[]), ...(icons as string[])]));
                         // Only preload ones we haven't already cached
@@ -1148,10 +1183,9 @@ export default class App extends React.Component<any, any> {
                 if (!game) { console.warn(`Could not find game manifest for install: ${install.name} (${install.manifest_id})`); }
 
                 if (game) {
-                    const version = game.game_versions?.find((v: any) => v.metadata?.version === install.version);
-                    const assets = version?.assets || game.assets;
+                    const assets = getInstallVersionAssets(game, install);
                     // Add dynamic background if available
-                    if (assets?.game_live_background) {
+                    if (linuxLiveBackgroundsEnabled(this.state.globalSettings) && assets?.game_live_background) {
                         addBg(assets.game_live_background, "Dynamic", true);
                     }
                     // Add static background from game manifest
@@ -1163,10 +1197,11 @@ export default class App extends React.Component<any, any> {
                 // If the install has a stored background that isn't in the current manifest
                 // (e.g. an outdated/imported version), clear manifest backgrounds and show only
                 // the install's own background — no navigation alternatives for outdated installs
-                if (install.game_background && !backgrounds.some(b => b.src === install.game_background)) {
+                const effectiveInstallBackground = getEffectiveInstallBackground(this.state.globalSettings, this.state.gamesinfo, install);
+                if (effectiveInstallBackground && !backgrounds.some(b => b.src === effectiveInstallBackground)) {
                     backgrounds.length = 0;
                     seen.clear();
-                    addBg(install.game_background, "Static", false);
+                    addBg(effectiveInstallBackground, isVideoUrl(effectiveInstallBackground) ? "Dynamic" : "Static", isVideoUrl(effectiveInstallBackground));
                 }
             }
         } else if (this.state.currentGame) {
@@ -1174,7 +1209,7 @@ export default class App extends React.Component<any, any> {
             const game = this.state.gamesinfo.find((g: any) => g.biz === this.state.currentGame);
             if (game) {
                 // Add dynamic background if available
-                if (game.assets?.game_live_background) {
+                if (linuxLiveBackgroundsEnabled(this.state.globalSettings) && game.assets?.game_live_background) {
                     addBg(game.assets.game_live_background, "Dynamic", true);
                 }
                 if (game.assets?.game_background) {
@@ -1198,9 +1233,10 @@ export default class App extends React.Component<any, any> {
                 ? this.state.installs.find((i: any) => i.id === this.state.currentInstall)
                 : null;
 
-            if (install?.game_background && !forceReset) {
+            const effectiveInstallBackground = getEffectiveInstallBackground(this.state.globalSettings, this.state.gamesinfo, install);
+            if (effectiveInstallBackground && !forceReset) {
                 // Use the install's stored game_background if it's in the available list
-                const installedBg = backgrounds.find(b => b.src === install.game_background);
+                const installedBg = backgrounds.find(b => b.src === effectiveInstallBackground);
                 if (installedBg && this.state.gameBackground !== installedBg.src) {
                     this.setBackground(installedBg.src);
                 } else if (!installedBg && backgrounds.length > 0) {

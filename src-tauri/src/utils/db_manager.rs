@@ -197,6 +197,12 @@ pub async fn init_db<R: Runtime>(app: &AppHandle<R>, data_path: std::path::PathB
             sql: r#"ALTER TABLE settings ADD COLUMN linux_live_background_migrated bool DEFAULT false NOT NULL;"#,
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 32,
+            description: "alter_settings_table_linux_experimental_live_backgrounds",
+            sql: r#"ALTER TABLE settings ADD COLUMN linux_experimental_live_backgrounds bool DEFAULT false NOT NULL;"#,
+            kind: MigrationKind::Up,
+        },
     ];
 
     let mut migrations = add_migrations("db", migrationsl);
@@ -257,6 +263,7 @@ pub fn get_settings<R: Runtime>(app: &AppHandle<R>) -> Option<GlobalSettings> {
             default_mangohud_config_path: rslt.get(0).unwrap().get("default_mangohud_config_path"),
             hide_app_to_tray: rslt.get(0).unwrap().get("hide_app_to_tray"),
             app_lang: rslt.get(0).unwrap().get("app_lang"),
+            linux_experimental_live_backgrounds: rslt.get(0).unwrap().get("linux_experimental_live_backgrounds"),
         };
         Some(rsltt)
     } else { None }
@@ -294,6 +301,22 @@ pub fn update_settings_linux_live_background_migrated<R: Runtime>(app: &AppHandl
     run_async_command(async {
         let db = app.state::<DbInstances>().0.lock().await.get("db").unwrap().clone();
         let query = query("UPDATE settings SET 'linux_live_background_migrated' = true WHERE id = 1");
+        query.execute(&db).await.unwrap();
+    });
+}
+
+pub fn reset_settings_linux_live_background_migrated<R: Runtime>(app: &AppHandle<R>) {
+    run_async_command(async {
+        let db = app.state::<DbInstances>().0.lock().await.get("db").unwrap().clone();
+        let query = query("UPDATE settings SET 'linux_live_background_migrated' = false WHERE id = 1");
+        query.execute(&db).await.unwrap();
+    });
+}
+
+pub fn update_settings_linux_experimental_live_backgrounds<R: Runtime>(app: &AppHandle<R>, enabled: bool) {
+    run_async_command(async {
+        let db = app.state::<DbInstances>().0.lock().await.get("db").unwrap().clone();
+        let query = query("UPDATE settings SET 'linux_experimental_live_backgrounds' = $1 WHERE id = 1").bind(enabled);
         query.execute(&db).await.unwrap();
     });
 }

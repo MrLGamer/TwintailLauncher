@@ -9,10 +9,14 @@ import { showDialogAsync } from "../context/DialogContext.tsx";
 
 const IMAGE_PRELOAD_TIMEOUT_MS = 20000;
 
+const isLinux = window.navigator.platform.includes("Linux");
+const liveBackgroundsEnabled = (settings: any) => !isLinux || Boolean(settings?.linux_experimental_live_backgrounds);
+const isVideoUrl = (url?: string) => !!url && /\.(mp4|webm)(?:[?#]|$)/i.test(url);
+
 function getReferencedLiveBackgrounds(games: any[], installs: any[]): string[] {
   const urls = new Set<string>();
   const add = (url?: string) => {
-    if (url && /\.(mp4|webm)(?:[?#]|$)/i.test(url)) urls.add(url);
+    if (isVideoUrl(url)) urls.add(url!);
   };
 
   games.forEach((game: any) => {
@@ -23,8 +27,8 @@ function getReferencedLiveBackgrounds(games: any[], installs: any[]): string[] {
   return Array.from(urls);
 }
 
-async function cleanupLiveBackgroundCache(games: any[], installs: any[]): Promise<void> {
-  if (!window.navigator.platform.includes("Linux") || games.length === 0) return;
+async function cleanupLiveBackgroundCache(games: any[], installs: any[], settings: any): Promise<void> {
+  if (!isLinux || games.length === 0 || !liveBackgroundsEnabled(settings)) return;
 
   try {
     await invoke<number>("cleanup_live_background_cache", {
@@ -82,6 +86,7 @@ export interface LoaderOptions {
   fetchCompatibilityVersionsFiltered: () => Promise<void>;
   fetchInstalledRunners: () => Promise<void>;
   fetchSteamRTStatus: () => Promise<void>;
+  getSettings: () => any;
   getGamesInfo: () => any[];
   getInstalls: () => any[];
   preloadImages: (
@@ -183,7 +188,7 @@ export function startInitialLoad(opts: LoaderOptions): LoaderController {
       try {
         await opts.fetchRepositories().catch(e => { console.error("Error loading repositories:", e); });
         // Load runners if application is running on Linux (all independent, fetch in parallel)
-        if (window.navigator.platform.includes("Linux")) {
+        if (isLinux) {
           await Promise.all([
             opts.fetchCompatibilityVersions(),
             opts.fetchCompatibilityVersionsFiltered(),
@@ -211,10 +216,11 @@ export function startInitialLoad(opts: LoaderOptions): LoaderController {
       // Also preload live/dynamic backgrounds for smooth transitions
       const games = opts.getGamesInfo() || [];
       const installs = opts.getInstalls ? (opts.getInstalls() || []) : [];
+      const linuxLiveBackgroundsEnabled = liveBackgroundsEnabled(opts.getSettings?.());
       const gameBackgrounds: string[] = games.map((g: any) => g?.assets?.game_background).filter(Boolean);
-      const gameLiveBackgrounds: string[] = games.map((g: any) => g?.assets?.game_live_background).filter(Boolean);
+      const gameLiveBackgrounds: string[] = linuxLiveBackgroundsEnabled ? games.map((g: any) => g?.assets?.game_live_background).filter(Boolean) : [];
       const gameIcons: string[] = games.map((g: any) => g?.assets?.game_icon).filter(Boolean);
-      const installBackgrounds: string[] = installs.map((i: any) => i?.game_background).filter(Boolean);
+      const installBackgrounds: string[] = installs.map((i: any) => i?.game_background).filter((bg: any) => bg && (linuxLiveBackgroundsEnabled || !isVideoUrl(bg)));
       const installIcons: string[] = installs.map((i: any) => i?.game_icon).filter(Boolean);
       // Deduplicate all URLs - live backgrounds are preloaded first for immediate use
       const images = Array.from(new Set([
@@ -244,7 +250,7 @@ export function startInitialLoad(opts: LoaderOptions): LoaderController {
           }),
         ]);
       } catch (e) { console.error("Error during image preloading:", e); }
-      await cleanupLiveBackgroundCache(games, installs);
+      await cleanupLiveBackgroundCache(games, installs, opts.getSettings?.());
       if (cancelled) return;
       opts.setProgress(100, translate("loading_screen.initializing"));
 
@@ -315,7 +321,7 @@ export class NetworkMonitor {
   private previousStatus: NetworkStatus["status"] = "online";
   private consecutiveFailures = 0;
   private static readonly FAILURE_THRESHOLD = 3;
-  private recoveryOpts: Pick<LoaderOptions, 'fetchRepositories' | 'fetchCompatibilityVersions' | 'fetchCompatibilityVersionsFiltered' | 'fetchInstalledRunners' | 'fetchSteamRTStatus' | 'getGamesInfo' | 'getInstalls' | 'preloadImages' | 'preloadedBackgrounds' | 'applyEventState'> | null = null;
+  private recoveryOpts: Pick<LoaderOptions, 'fetchRepositories' | 'fetchCompatibilityVersions' | 'fetchCompatibilityVersionsFiltered' | 'fetchInstalledRunners' | 'fetchSteamRTStatus' | 'getSettings' | 'getGamesInfo' | 'getInstalls' | 'preloadImages' | 'preloadedBackgrounds' | 'applyEventState'> | null = null;
 
   constructor(
     onStatusChange: (status: NetworkStatus, isRecovering: boolean) => void,
@@ -421,7 +427,7 @@ export class NetworkMonitor {
       this.onRecoveryProgress({ phase: "loading_repos", current: 0, total: 1, message: translate("network.loading_repos") });
       try {
         await this.recoveryOpts.fetchRepositories();
-        if (window.navigator.platform.includes("Linux")) {
+        if (isLinux) {
           await Promise.all([
             this.recoveryOpts.fetchCompatibilityVersions(),
             this.recoveryOpts.fetchCompatibilityVersionsFiltered(),
@@ -443,10 +449,11 @@ export class NetworkMonitor {
       // Preload images
       const games = this.recoveryOpts.getGamesInfo() || [];
       const installs = this.recoveryOpts.getInstalls ? (this.recoveryOpts.getInstalls() || []) : [];
+      const linuxLiveBackgroundsEnabled = liveBackgroundsEnabled(this.recoveryOpts.getSettings?.());
       const gameBackgrounds: string[] = games.map((g: any) => g?.assets?.game_background).filter(Boolean);
-      const gameLiveBackgrounds: string[] = games.map((g: any) => g?.assets?.game_live_background).filter(Boolean);
+      const gameLiveBackgrounds: string[] = linuxLiveBackgroundsEnabled ? games.map((g: any) => g?.assets?.game_live_background).filter(Boolean) : [];
       const gameIcons: string[] = games.map((g: any) => g?.assets?.game_icon).filter(Boolean);
-      const installBackgrounds: string[] = installs.map((i: any) => i?.game_background).filter(Boolean);
+      const installBackgrounds: string[] = installs.map((i: any) => i?.game_background).filter((bg: any) => bg && (linuxLiveBackgroundsEnabled || !isVideoUrl(bg)));
       const installIcons: string[] = installs.map((i: any) => i?.game_icon).filter(Boolean);
 
       const allImages = Array.from(new Set([

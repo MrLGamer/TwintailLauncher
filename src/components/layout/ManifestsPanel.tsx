@@ -27,6 +27,7 @@ interface ManifestsPanelProps {
   setGameIcon: (src: string) => void;
   onRequestClose?: () => void;
   imageVersion?: number; // Used to force image re-load after network recovery
+  liveBackgroundsEnabled?: boolean;
 }
 
 const ManifestsPanel: React.FC<ManifestsPanelProps> = ({
@@ -43,6 +44,7 @@ const ManifestsPanel: React.FC<ManifestsPanelProps> = ({
   setGameIcon,
   onRequestClose,
   imageVersion = 0,
+  liveBackgroundsEnabled = true,
 }) => {
   // Close when clicking anywhere outside the manifests panel
   useEffect(() => {
@@ -127,7 +129,7 @@ const ManifestsPanel: React.FC<ManifestsPanelProps> = ({
             {gamesinfo.map((game, _index) => {
               // Use dynamic background if available, otherwise fall back to static
               // Using || handles undefined, null, and empty string cases
-              let bg = game.assets.game_live_background || game.assets.game_background;
+              let bg = liveBackgroundsEnabled ? (game.assets.game_live_background || game.assets.game_background) : game.assets.game_background;
 
               return (
                 <motion.div

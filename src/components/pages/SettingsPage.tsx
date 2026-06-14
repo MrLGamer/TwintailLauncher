@@ -3,6 +3,7 @@ import { translate } from "../../utils/i18n";
 import {invoke} from "@tauri-apps/api/core";
 import {ArrowLeft, Download, Folder, HeartIcon, Info, LogsIcon, Monitor, Settings, WrenchIcon} from "lucide-react";
 import {SettingsSidebar, SettingsTab} from "../sidebar/SettingsSidebar.tsx";
+import { showDialogAsync } from "../../context/DialogContext.tsx";
 import {
     ModernInput,
     ModernPathInput,
@@ -15,12 +16,13 @@ import {getVersion} from "@tauri-apps/api/app";
 
 interface SettingsPageProps {
     settings: any;
-    fetchSettings: () => void;
+    fetchSettings: () => Promise<void>;
+    pushInstalls: () => void;
     setCurrentPage: (page: PAGES) => void;
     availableLocales: { value: string; label: string }[];
 }
 
-export default function SettingsPage({ settings, fetchSettings, setCurrentPage, availableLocales }: SettingsPageProps) {
+export default function SettingsPage({ settings, fetchSettings, pushInstalls, setCurrentPage, availableLocales }: SettingsPageProps) {
     const [activeTab, setActiveTab] = useState("general");
 
     const tabs: SettingsTab[] = [
@@ -36,7 +38,20 @@ export default function SettingsPage({ settings, fetchSettings, setCurrentPage, 
     const updateSetting = async (key: string, value: any) => {
         try {
             if (typeof value === "boolean") {
-                await invoke(`update_settings_${key}`, { enabled: value });
+                if (key === "linux_experimental_live_backgrounds") {
+                    await invoke("update_settings_linux_experimental_live_backgrounds_cmd", { enabled: value });
+                    await fetchSettings();
+                    pushInstalls();
+                    await showDialogAsync({
+                        type: "warning",
+                        title: translate("launcher_settings.linux.live_backgrounds_restart.title"),
+                        message: translate("launcher_settings.linux.live_backgrounds_restart.message"),
+                        buttons: [{ label: translate("network.ok"), variant: "primary" }],
+                    });
+                    return;
+                } else {
+                    await invoke(`update_settings_${key}`, { enabled: value });
+                }
             } else if (typeof value === "string" || typeof value === "number") {
                 if (key === "download_speed_limit") {
                     await invoke("update_settings_download_speed_limit_cmd", { speedLimit: Number(value) });
@@ -214,6 +229,14 @@ export default function SettingsPage({ settings, fetchSettings, setCurrentPage, 
                                     onChange={(val) => updateSetting("default_mangohud_config_path", val)}
                                     folder={false}
                                     extensions={["conf"]}
+                                />
+                            </SettingsSection>
+                            <SettingsSection title={translate("launcher_settings.linux.experimental_title")}>
+                                <ModernToggle
+                                    label={translate("launcher_settings.linux.live_backgrounds.label")}
+                                    description={translate("launcher_settings.linux.live_backgrounds.description")}
+                                    checked={Boolean(settings.linux_experimental_live_backgrounds)}
+                                    onChange={(val) => updateSetting("linux_experimental_live_backgrounds", val)}
                                 />
                             </SettingsSection>
                             <SettingsSection title={translate("launcher_settings.linux.debug_title")}>

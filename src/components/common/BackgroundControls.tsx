@@ -20,6 +20,8 @@ const BackgroundControls: React.FC<BackgroundControlsProps> = ({
     onBackgroundChange,
     isVisible,
 }) => {
+    if (isLinux) return null;
+
     const [isPaused, setIsPaused] = useState(false);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isBackgroundHovered, setIsBackgroundHovered] = useState(false);
@@ -120,9 +122,6 @@ const BackgroundControls: React.FC<BackgroundControlsProps> = ({
     const hasMultipleBackgrounds = availableBackgrounds.length > 1;
 
     if (!isVisible || availableBackgrounds.length === 0) return null;
-
-    // Keep the Linux static-only shortcut, but expose playback for a lone dynamic background.
-    if (isLinux && !hasMultipleBackgrounds && !isDynamicBackground) return null;
 
     return (
         <div

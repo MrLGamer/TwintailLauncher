@@ -1,7 +1,7 @@
-use crate::utils::db_manager::{get_install_info_by_id, get_installed_runner_info_by_version, get_manifest_info_by_id, get_settings, update_settings_app_lang, update_settings_default_dxvk_location, update_settings_default_fps_unlock_location, update_settings_default_game_location, update_settings_default_jadeite_location, update_settings_default_mangohud_config_location, update_settings_default_prefix_location, update_settings_default_runner_location, update_settings_default_xxmi_location, update_settings_download_speed_limit, update_settings_hide_app_to_tray, update_settings_hide_manifests, update_settings_launch_action, update_settings_third_party_repo_update};
+use crate::utils::db_manager::{get_install_info_by_id, get_installed_runner_info_by_version, get_manifest_info_by_id, get_settings, reset_settings_linux_live_background_migrated, update_settings_app_lang, update_settings_default_dxvk_location, update_settings_default_fps_unlock_location, update_settings_default_game_location, update_settings_default_jadeite_location, update_settings_default_mangohud_config_location, update_settings_default_prefix_location, update_settings_default_runner_location, update_settings_default_xxmi_location, update_settings_download_speed_limit, update_settings_hide_app_to_tray, update_settings_hide_manifests, update_settings_launch_action, update_settings_linux_experimental_live_backgrounds, update_settings_third_party_repo_update};
 use crate::utils::models::GlobalSettings;
 use crate::utils::repo_manager::get_manifest;
-use crate::utils::{compare_version, get_mi_path_from_game, show_dialog_with_callback};
+use crate::utils::{compare_version, get_mi_path_from_game, show_dialog_with_callback, sync_install_backgrounds};
 use std::fs;
 use std::path::Path;
 use tauri::{AppHandle, Runtime,Manager};
@@ -165,6 +165,16 @@ pub fn update_settings_manifests_hide<R: Runtime>(app: AppHandle<R>, enabled: bo
 #[tauri::command]
 pub fn update_settings_hide_app_tray<R: Runtime>(app: AppHandle<R>, enabled: bool) -> Option<bool> {
     update_settings_hide_app_to_tray(&app, enabled);
+    Some(true)
+}
+
+#[tauri::command]
+pub fn update_settings_linux_experimental_live_backgrounds_cmd<R: Runtime>(app: AppHandle<R>, enabled: bool) -> Option<bool> {
+    update_settings_linux_experimental_live_backgrounds(&app, enabled);
+    if enabled {
+        reset_settings_linux_live_background_migrated(&app);
+    }
+    sync_install_backgrounds(&app);
     Some(true)
 }
 

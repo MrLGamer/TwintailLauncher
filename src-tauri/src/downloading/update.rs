@@ -1,7 +1,7 @@
 use crate::DownloadState;
 use crate::downloading::queue::{QueueJobKind, QueueJobOutcome};
 use crate::downloading::{DownloadGamePayload, QueueJobPayload};
-use crate::utils::db_manager::{get_install_info_by_id, get_manifest_info_by_id, update_install_after_update_by_id};
+use crate::utils::db_manager::{get_install_info_by_id, get_manifest_info_by_id, get_settings, update_install_after_update_by_id};
 use crate::utils::repo_manager::get_manifest;
 use crate::utils::{models::{DiffGameFile,FullGameFile,GameVersion}, run_async_command, show_dialog_with_callback};
 use fischl::download::game::{Game, Kuro, Sophon, Zipped};
@@ -54,7 +54,8 @@ pub fn run_game_update<R: Runtime>(h5: AppHandle<R>, payload: DownloadGamePayloa
         let vn = picked.metadata.versioned_name.clone();
         let vc = picked.metadata.version.clone();
         let ig = picked.assets.game_icon.clone();
-        let gb = if install.game_background.ends_with(".webm") || install.game_background.ends_with(".mp4") { if let Some(ref lbg) = picked.assets.game_live_background { if !lbg.is_empty() { lbg.clone() } else { picked.assets.game_background.clone() } } else { picked.assets.game_background.clone() } } else { picked.assets.game_background.clone() };
+        let live_backgrounds_enabled = !cfg!(target_os = "linux") || get_settings(&h5).is_some_and(|s| s.linux_experimental_live_backgrounds);
+        let gb = if live_backgrounds_enabled && (install.game_background.ends_with(".webm") || install.game_background.ends_with(".mp4")) { if let Some(ref lbg) = picked.assets.game_live_background { if !lbg.is_empty() { lbg.clone() } else { picked.assets.game_background.clone() } } else { picked.assets.game_background.clone() } } else { picked.assets.game_background.clone() };
         let gbiz = gm.biz.clone();
 
         let instn = Arc::new(install.name.clone());

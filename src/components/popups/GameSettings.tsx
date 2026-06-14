@@ -25,6 +25,7 @@ import { SettingsLayout } from "../layout/SettingsLayout.tsx";
 import { SettingsSidebar, SettingsTab } from "../sidebar/SettingsSidebar.tsx";
 import { SettingsSection, ModernToggle, ModernInput, ModernPathInput, ModernSelect } from "../common/SettingsComponents.tsx";
 import { translate } from "../../utils/i18n";
+import { isVideoUrl } from "../../utils/imagePreloader.ts";
 
 
 // Helper for Steam Icon
@@ -147,13 +148,22 @@ export default function GameSettings({
         }
     }
 
-    // Find images - always use static backgrounds for settings popup
+    // Find images. The settings popup banner uses static art even when the
+    // launcher background is a live wallpaper; embedded Linux modal videos are
+    // unreliable in WebKitGTK and can render as a dark header.
     // Memoize to prevent unnecessary re-renders on Linux
     const banner = useMemo(() => {
         const installInfo = (installs || []).find((i: any) => i.id === installSettings.id);
         const gameInfo = (gamesinfo || []).find((g: any) => g.manifest_id === installSettings.manifest_id) || (gamesinfo || []).find((g: any) => g.biz === installSettings.manifest_id);
-        return installSettings.game_background || gameInfo?.assets?.game_background || gameInfo?.background || installInfo?.game_background;
-    }, [installs, gamesinfo, installSettings.id, installSettings.manifest_id, installSettings.game_background]);
+        const manifest = gameManifest?.game_versions ? gameManifest : gameInfo;
+        const versionAssets = manifest?.game_versions?.find((v: any) => v.metadata?.version === installSettings.version)?.assets;
+        const assets = versionAssets || manifest?.assets || gameInfo?.assets;
+        const storedBackground = installSettings.game_background || installInfo?.game_background || "";
+
+        return !isVideoUrl(storedBackground)
+            ? (storedBackground || assets?.game_background || gameInfo?.background || "")
+            : (assets?.game_background || gameInfo?.background || "");
+    }, [installs, gamesinfo, gameManifest, installSettings.id, installSettings.manifest_id, installSettings.version, installSettings.game_background]);
 
     const icon = useMemo(() => {
         const installInfo = (installs || []).find((i: any) => i.id === installSettings.id);

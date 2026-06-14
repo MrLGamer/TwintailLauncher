@@ -188,7 +188,8 @@ pub fn add_install<R: Runtime>(app: AppHandle<R>, manifest_id: String, version: 
             // Patch wuwa if existing install
             if gm.biz == "wuwa_global" && skip_game_dl { crate::utils::apply_patch(&app, Path::new(&directory.clone()).to_str().unwrap().to_string(), "aki".to_string(), "add".to_string()); }
         }
-        let gbg = if let Some(ref lbg) = g.assets.game_live_background { if !lbg.is_empty() { lbg.clone() } else { g.assets.game_background.clone() } } else { g.assets.game_background.clone() };
+        let live_backgrounds_enabled = !cfg!(target_os = "linux") || gs.linux_experimental_live_backgrounds;
+        let gbg = if live_backgrounds_enabled { if let Some(ref lbg) = g.assets.game_live_background { if !lbg.is_empty() { lbg.clone() } else { g.assets.game_background.clone() } } else { g.assets.game_background.clone() } } else { g.assets.game_background.clone() };
         if !install_location.exists() {
             if let Err(e) = fs::create_dir_all(&install_location) {
                 let err = e.to_string(); show_dialog_with_callback(&app, "error", "TwintailLauncher", "dialogs.install_start_failed", None, None, Some(std::collections::HashMap::from([("error", err.as_str())])));

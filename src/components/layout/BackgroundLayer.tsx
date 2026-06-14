@@ -209,7 +209,7 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
     removeMediaElement(linuxLoopStandbyRef.current);
     linuxLoopStandbyRef.current = null;
 
-    const baseClass = `w-full h-screen object-cover object-center absolute inset-0 transition-transform duration-300 ease-out will-change-transform`;
+    const baseClass = `w-full h-screen object-cover object-center absolute inset-0 transition-transform duration-300 ease-out will-change-transform ${(popupOpen || pageOpen) ? "scale-[1.03]" : ""}`;
     const oldElement = currentElementRef.current;
     const element = createImageElement(srcAtCallTime, baseClass, () => { onMainLoad?.(); });
     element.id = "app-bg";
@@ -230,7 +230,7 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
     // queueMicrotask runs after useLayoutEffect but before browser paint,
     // so the animation class is applied before the first frame renders.
     queueMicrotask(revealImage);
-  }, [currentSrc, bgVersion, createImageElement, onMainLoad]);
+  }, [currentSrc, bgVersion, createImageElement, onMainLoad, popupOpen, pageOpen]);
 
   // Effect to handle current background
   useEffect(() => {
@@ -263,7 +263,7 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
       return;
     }
 
-    const baseClass = `w-full h-screen object-cover object-center absolute inset-0 transition-transform duration-300 ease-out will-change-transform`;
+    const baseClass = `w-full h-screen object-cover object-center absolute inset-0 transition-transform duration-300 ease-out will-change-transform ${(popupOpen || pageOpen) ? "scale-[1.03]" : ""}`;
 
     // Ensure preloaded before creating element
     const createAndAppend = (srcAtCallTime: string) => {
@@ -431,7 +431,7 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
       const srcToPreload = currentSrc;
       preloadImage(srcToPreload).then(() => createAndAppend(srcToPreload));
     }
-  }, [currentSrc, bgVersion, createVideoElement, createImageElement, enableSeamlessLinuxLoop, onMainLoad]);
+  }, [currentSrc, bgVersion, createVideoElement, createImageElement, enableSeamlessLinuxLoop, onMainLoad, popupOpen, pageOpen]);
 
   // Effect to handle previous background (for transitions)
   useEffect(() => {
@@ -494,10 +494,12 @@ const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
   // Previously this did a full className= replacement including animate-bg-fade-in, which
   // restarted the fade-in animation every install switch. Now only scale-[1.03] is toggled.
   useEffect(() => {
-    const el = currentElementRef.current;
-    if (!el || !currentSrc) return;
-    if (popupOpen || pageOpen) { el.classList.add("scale-[1.03]"); }
-    else { el.classList.remove("scale-[1.03]"); }
+    if (!currentSrc) return;
+    const elements = [currentElementRef.current, linuxLoopStandbyRef.current].filter(Boolean) as HTMLElement[];
+    elements.forEach((el) => {
+      if (popupOpen || pageOpen) { el.classList.add("scale-[1.03]"); }
+      else { el.classList.remove("scale-[1.03]"); }
+    });
   }, [popupOpen, pageOpen, currentSrc]);
 
   return (

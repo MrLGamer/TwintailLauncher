@@ -12,6 +12,7 @@ import { formatBytes, toPercent } from '../../utils/progress';
 import { ArrowLeft, DownloadCloud } from "lucide-react";
 import { PAGES } from './PAGES';
 import { CachedImage } from '../common/CachedImage';
+import { isVideoUrl } from '../../utils/imagePreloader';
 
 /* Telemetry sample for graph */
 interface TelemetrySample {
@@ -25,6 +26,8 @@ interface InstallView {
     name?: string;
     game_icon?: string;
     game_background?: string;
+    manifest_id?: string;
+    version?: string;
 }
 
 /* Props for DownloadsPage */
@@ -33,6 +36,7 @@ interface DownloadsPageProps {
     queue: DownloadQueueStatePayload | null;
     progressByJobId: Record<string, DownloadJobProgress>;
     installs: InstallView[];
+    gamesinfo: any[];
     speedHistory: TelemetrySample[];
     onSpeedSample: (sample: TelemetrySample) => void;
     onClearHistory: () => void;
@@ -158,6 +162,7 @@ export default function DownloadsPage({
     queue,
     progressByJobId,
     installs,
+    gamesinfo,
     speedHistory,
     onSpeedSample,
     onClearHistory,
@@ -551,7 +556,21 @@ export default function DownloadsPage({
 
     // Get install info for banner
     const currentInstall = currentJob ? installs.find(i => i.id === currentJob.installId) : null;
-    const bannerImage = currentInstall?.game_background;
+    const currentGame = currentInstall
+        ? gamesinfo.find((game: any) => game.manifest_id === currentInstall.manifest_id) ||
+            gamesinfo.find((game: any) => game.game_versions?.some((version: any) =>
+                version.metadata?.version === currentInstall.version &&
+                (
+                    version.metadata?.versioned_name === currentInstall.name ||
+                    version.assets?.game_icon === currentInstall.game_icon ||
+                    version.assets?.game_background === currentInstall.game_background ||
+                    version.assets?.game_live_background === currentInstall.game_background
+                )
+            ))
+        : null;
+    const currentVersionAssets = currentGame?.game_versions?.find((version: any) => version.metadata?.version === currentInstall?.version)?.assets;
+    const staticBanner = currentVersionAssets?.game_background || currentGame?.assets?.game_background;
+    const bannerImage = staticBanner || (currentInstall?.game_background && !isVideoUrl(currentInstall.game_background) ? currentInstall.game_background : "");
 
     // Speed limit display
     const limitText = downloadSpeedLimitKB > 0

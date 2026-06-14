@@ -399,8 +399,11 @@ pub fn sync_installed_runners<R: Runtime>(app: &AppHandle<R>) {
 pub fn sync_install_backgrounds<R: Runtime>(app: &AppHandle<R>) {
     if let Some(is) = get_installs(app) {
         log::debug!("Started background sync for {} installs", is.len());
+        let settings = get_settings(app);
         #[cfg(target_os = "linux")]
-        let migrate_live_backgrounds = !get_settings_linux_live_background_migrated(app);
+        let linux_live_backgrounds_enabled = settings.as_ref().is_some_and(|s| s.linux_experimental_live_backgrounds);
+        #[cfg(target_os = "linux")]
+        let migrate_live_backgrounds = linux_live_backgrounds_enabled && !get_settings_linux_live_background_migrated(app);
         #[cfg(target_os = "linux")]
         let mut migration_ready = true;
         for i in is {
@@ -421,6 +424,8 @@ pub fn sync_install_backgrounds<R: Runtime>(app: &AppHandle<R>) {
                 let migrate_live = migrate_live_backgrounds && i.game_background == cur.assets.game_background && cur.assets.game_live_background.as_ref().is_some_and(|bg| !bg.is_empty());
                 #[cfg(not(target_os = "linux"))]
                 let migrate_live = false;
+                #[cfg(target_os = "linux")]
+                let is_live = linux_live_backgrounds_enabled && is_live;
                 let bg = if is_live || migrate_live { cur.assets.game_live_background.clone().filter(|bg| !bg.is_empty()).unwrap_or(cur.assets.game_background.clone()) } else { cur.assets.game_background.clone() };
                 if (!i.ignore_updates || migrate_live) && i.game_background != bg { update_install_after_update_by_id(app, i.id, i.name, i.game_icon, bg, i.version); }
             } else {

@@ -38,13 +38,14 @@ interface PageViewContainerProps {
 
     // Settings props
     globalSettings: any;
-    fetchSettings: () => void;
+    fetchSettings: () => Promise<void>;
     availableLocales: { value: string; label: string }[];
 
     // Downloads props
     downloadQueueState: DownloadQueueStatePayload | null;
     downloadProgressByJobId: Record<string, DownloadJobProgress>;
     installs: InstallView[];
+    gamesinfo: any[];
     speedHistory: TelemetrySample[];
     onSpeedSample: (sample: TelemetrySample) => void;
     onClearHistory: () => void;
@@ -69,6 +70,7 @@ export default function PageViewContainer({
     downloadQueueState,
     downloadProgressByJobId,
     installs,
+    gamesinfo,
     speedHistory,
     onSpeedSample,
     onClearHistory,
@@ -122,6 +124,7 @@ export default function PageViewContainer({
                     <SettingsPage
                         settings={globalSettings}
                         fetchSettings={fetchSettings}
+                        pushInstalls={pushInstalls}
                         setCurrentPage={setCurrentPage}
                         availableLocales={availableLocales}
                     />
@@ -132,6 +135,7 @@ export default function PageViewContainer({
                         queue={downloadQueueState}
                         progressByJobId={downloadProgressByJobId}
                         installs={installs}
+                        gamesinfo={gamesinfo}
                         speedHistory={speedHistory}
                         onSpeedSample={onSpeedSample}
                         onClearHistory={onClearHistory}

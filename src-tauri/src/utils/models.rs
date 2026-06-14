@@ -36,6 +36,7 @@ pub struct GlobalSettings {
     pub default_mangohud_config_path: String,
     pub hide_app_to_tray: bool,
     pub app_lang: String,
+    pub linux_experimental_live_backgrounds: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
