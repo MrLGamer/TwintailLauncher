@@ -114,6 +114,8 @@
     "xxmi.show_warnings.description": "Mod-Parse-Warnungen anzeigen, um defekte Mods zu debuggen.",
     "xxmi.dump_shaders.label": "Shader dumpen",
     "xxmi.dump_shaders.description": "Shader-Dumping für die Mod-Entwicklung aktivieren.",
+    "xxmi.cache_shaders.label": "Shader-Cache",
+    "xxmi.cache_shaders.description": "Aktiviere den Shader-Cache von XXMI.",
     "xxmi.hunting_mode.label": "Hunting-Modus",
     "xxmi.hunting_mode.description": "Wähle aus, wie sich der XXMI-Hunting-Modus verhalten soll.",
     "xxmi.hunting_mode.disabled": "Deaktiviert",
@@ -135,8 +137,6 @@
     "linux.runner_location.description": "Pfad zum Wine-/Proton-Ordner.",
     "linux.prefix_location.label": "Prefix-Speicherort",
     "linux.prefix_location.description": "Pfad zum Wine-/Proton-Prefix.",
-    "linux.jadeite.label": "Jadeite",
-    "linux.jadeite.description": "Jadeite-Patch aktivieren.",
     "linux.gamemode.label": "Gamemode",
     "linux.gamemode.description": "Feral Interactive GameMode aktivieren.",
     "linux.mangohud.label": "MangoHUD",
@@ -166,6 +166,14 @@
     "manage.copy_authkey.copied_description": "Bereit zum Einfügen in Aivo Sync.",
     "manage.copy_authkey.failed": "Kopieren fehlgeschlagen",
     "manage.copy_authkey.failed_description": "Authkey konnte nicht kopiert werden. Öffne zuerst den Pull-Verlauf.",
+    "manage.copy_pullurl": "Pull-URL kopieren",
+    "manage.copy_pullurl.description": "Kopiere die URL zum Importieren deiner Pull-Historie",
+    "manage.copy_pullurl.copying": "Kopiere URL...",
+    "manage.copy_pullurl.copying_description": "Lese neuestes Spielprotokoll und kopiere in die Zwischenablage...",
+    "manage.copy_pullurl.copied": "URL kopiert",
+    "manage.copy_pullurl.copied_description": "Bereit zum Einfügen in dein Pull-Tracker-Tool.",
+    "manage.copy_pullurl.failed": "Kopieren fehlgeschlagen",
+    "manage.copy_pullurl.failed_description": "Konnte URL nicht kopieren. Öffne zuerst die Pull-Historie.",
     "manage.open_engine_log": "Engine-Log öffnen",
     "manage.open_engine_log.description": "Spiel-Engine-Log anzeigen",
     "manage.runner_title": "Runner verwalten",
@@ -230,7 +238,8 @@
     "cancel": "Abbrechen",
     "install_button": "Spiel installieren",
     "locate_button": "Spiel suchen",
-    "use_existing_install": "Vorhandene Installation verwenden"
+    "use_existing_install": "Vorhandene Installation verwenden",
+    "exe_not_found": "Die ausführbare Datei des Spiels wurde in diesem Pfad nicht gefunden. Bitte wähle ein Verzeichnis, das die ausführbare Datei des Spiels enthält."
   },
 
   "game_button": {

@@ -16,6 +16,8 @@ pub struct XXMISettings {
     pub close_delay: u64,
     pub show_warnings: u64,
     pub dump_shaders: bool,
+    #[serde(default)]
+    pub cache_shaders: u64
 }
 
 // === DATABASE ===
@@ -25,7 +27,6 @@ pub struct GlobalSettings {
     pub default_game_path: String,
     pub xxmi_path: String,
     pub fps_unlock_path: String,
-    pub jadeite_path: String,
     pub third_party_repo_updates: i32,
     pub default_runner_prefix_path: String,
     pub download_speed_limit: i64,
@@ -78,7 +79,6 @@ pub struct LauncherInstall {
     pub game_background: String,
     pub ignore_updates: bool,
     pub skip_hash_check: bool,
-    pub use_jadeite: bool,
     pub use_xxmi: bool,
     pub use_fps_unlock: bool,
     pub env_vars: String,

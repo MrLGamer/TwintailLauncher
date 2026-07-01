@@ -2,7 +2,7 @@ use crate::utils::db_manager::{get_installs, get_manifest_info_by_id, get_settin
 #[cfg(target_os = "linux")]
 use crate::utils::db_manager::{
     create_installed_runner, get_installed_runner_info_by_version, get_installed_runners, update_installed_runner_is_installed_by_version,
-    update_settings_default_dxvk_location, update_settings_default_jadeite_location,
+    update_settings_default_dxvk_location,
     update_settings_default_prefix_location, update_settings_default_runner_location,
 };
 use crate::utils::models::{DialogResponse,XXMISettings};
@@ -34,10 +34,6 @@ pub mod repo_manager;
 pub mod shortcuts;
 pub mod system_tray;
 pub mod discord_rpc;
-
-pub fn generate_cuid() -> String {
-    cuid2::create_id()
-}
 
 pub fn run_async_command<F: Future>(cmd: F) -> F::Output {
     if tokio::runtime::Handle::try_current().is_ok() { tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(cmd)) } else { tauri::async_runtime::block_on(cmd) }
@@ -222,7 +218,6 @@ pub fn setup_or_fix_default_paths<R: Runtime>(app: &AppHandle<R>, path: PathBuf,
                 let wine = comppath.join("runners");
                 let dxvk = comppath.join("dxvk");
                 let prefixes = comppath.join("prefixes");
-                let jadeitepath = path.join("extras").join("jadeite");
                 let mangohudcfg = app.path().home_dir().unwrap().join(".config/MangoHud/MangoHud.conf");
 
                 // steamrt setup
@@ -243,7 +238,6 @@ pub fn setup_or_fix_default_paths<R: Runtime>(app: &AppHandle<R>, path: PathBuf,
                     }
                 }
 
-                if g.jadeite_path == "" { fs::create_dir_all(&jadeitepath).unwrap(); update_settings_default_jadeite_location(app, jadeitepath.to_str().unwrap().to_string()); }
                 if g.default_runner_path == "" { fs::create_dir_all(&wine).unwrap(); update_settings_default_runner_location(app, wine.to_str().unwrap().to_string()); }
                 if g.default_dxvk_path == "" { fs::create_dir_all(&dxvk).unwrap();update_settings_default_dxvk_location(app, dxvk.to_str().unwrap().to_string()); }
                 if g.default_runner_prefix_path == "" { fs::create_dir_all(&prefixes).unwrap(); update_settings_default_prefix_location(app, prefixes.to_str().unwrap().to_string()); }
@@ -260,7 +254,6 @@ pub fn setup_or_fix_default_paths<R: Runtime>(app: &AppHandle<R>, path: PathBuf,
             let wine = comppath.join("runners");
             let dxvk = comppath.join("dxvk");
             let prefixes = comppath.join("prefixes");
-            let jadeitepath = path.join("extras").join("jadeite");
             let mangohudcfg = app.path().home_dir().unwrap().join(".config/MangoHud/MangoHud.conf");
 
             // steamrt setup
@@ -282,7 +275,6 @@ pub fn setup_or_fix_default_paths<R: Runtime>(app: &AppHandle<R>, path: PathBuf,
             }
 
             if !mangohudcfg.exists() { db_manager::update_settings_default_mangohud_config_location(app, mangohudcfg.to_str().unwrap().to_string()); } else { db_manager::update_settings_default_mangohud_config_location(app, mangohudcfg.to_str().unwrap().to_string()); }
-            if !jadeitepath.exists() { fs::create_dir_all(&jadeitepath).unwrap();update_settings_default_jadeite_location(app, jadeitepath.to_str().unwrap().to_string()); }
             if !comppath.exists() {
                 fs::create_dir_all(&wine).unwrap();
                 fs::create_dir_all(&dxvk).unwrap();
@@ -439,18 +431,6 @@ pub fn sync_install_backgrounds<R: Runtime>(app: &AppHandle<R>) {
     }
 }
 
-#[cfg(all(target_arch = "x86_64", target_os = "windows"))]
-pub fn is_windows_arm_translation() -> bool {
-    #[link(name = "kernel32")]
-    unsafe extern "system" {
-        fn GetCurrentProcess() -> *mut core::ffi::c_void;
-        fn IsWow64Process2(h_process: *mut core::ffi::c_void, p_process_machine: *mut u16, p_native_machine: *mut u16) -> i32;
-    }
-    let mut process_machine: u16 = 0;
-    let mut native_machine: u16 = 0;
-    unsafe { IsWow64Process2(GetCurrentProcess(), &mut process_machine, &mut native_machine) != 0 && native_machine == 0xAA64 }
-}
-
 #[cfg(target_os = "linux")]
 #[allow(non_camel_case_types)]
 pub fn raise_fd_limit(new_limit: i32) {
@@ -579,7 +559,7 @@ pub fn apply_xxmi_tweaks(package: PathBuf, mut data: Json<XXMISettings>) -> Json
         let cfg = package.join("d3dx.ini");
         if cfg.exists() {
             let actions = if data.dump_shaders { "clipboard hlsl asm regex" } else { "clipboard" };
-            let mut managed: Vec<(&str, &str, String)> = vec![("Hunting","hunting",data.hunting_mode.to_string()), ("Hunting","marking_actions",actions.to_string()), ("Logging","show_warnings",data.show_warnings.to_string()), ];
+            let mut managed: Vec<(&str, &str, String)> = vec![("Hunting","hunting",data.hunting_mode.to_string()), ("Hunting","marking_actions",actions.to_string()), ("Logging","show_warnings",data.show_warnings.to_string()), ("Rendering","cache_shaders",data.cache_shaders.to_string()), ];
 
             #[cfg(target_os = "linux")]
             {
@@ -620,10 +600,12 @@ pub fn apply_xxmi_tweaks(package: PathBuf, mut data: Json<XXMISettings>) -> Json
 pub fn apply_wwmi_tweaks(base: PathBuf, xxmi_path: String) {
     let xxmi_base = Path::new(&xxmi_path).to_path_buf();
     let d3dcompiler = xxmi_base.join("d3dcompiler_47.dll");
-    let d3d_target = base.join("Client/Binaries/Win64/d3dcompiler_47.dll");
     if d3dcompiler.exists() {
         #[cfg(target_os = "linux")]
-        let _ = std::os::unix::fs::symlink(&d3dcompiler, &d3d_target);
+        {
+            let d3d_target = base.join("Client/Binaries/Win64/d3dcompiler_47.dll");
+            let _ = std::os::unix::fs::symlink(&d3dcompiler, &d3d_target);
+        }
     }
 
     let path = base.join("Client/Config/UserEngine.ini");
@@ -879,6 +861,38 @@ pub fn extract_authkey_from_content(content: &str) -> Option<String> {
         if let Ok(uri) = fischl::utils::parse_url(url.parse().unwrap()) {
             for (key, value) in uri.query_pairs() { if key.eq_ignore_ascii_case("authkey") && value.len() > 10 { return Some(value.into_owned()); } }
         }
+    }
+    None
+}
+
+pub fn extract_pullurl_from_content(content: &str, biz: String) -> Option<String> {
+    if biz == "wuwa_global" {
+        let decrypted: String = content.bytes().map(|byte| { (byte ^ if (byte & 0x0F) % 2 == 1 { 0xA5 } else { 0xEF }) as char }).collect();
+        let mut urls = Vec::new();
+        let mut offset = 0;
+        while offset < decrypted.len() {
+            let next = decrypted[offset..].find("https://");
+            if next.is_none() { break; }
+            let start = offset + next.unwrap();
+            let sliced = &decrypted[start..];
+            let end = sliced.find(|c: char| c.is_whitespace() || c == '"' || c == '\'' || c == '<' || c == '>').unwrap_or(sliced.len());
+            urls.push(&sliced[..end]);
+            offset = start + "https://".len();
+        }
+        let hints = vec!["aki-game"];
+        for url in urls.into_iter().rev() {
+            let lowered = url.to_ascii_lowercase();
+            if !hints.iter().any(|h| lowered.contains(h)) { continue; }
+            if fischl::utils::parse_url(url.parse().unwrap()).is_ok() { return Some(url.to_string()); }
+        }
+        return None;
+    }
+    let urls = collect_authkey_urls(content);
+    let hints = vec!["webview_gacha"];
+    for url in urls.into_iter().rev() {
+        let lowered = url.to_ascii_lowercase();
+        if !hints.iter().any(|h| lowered.contains(h)) { continue; }
+        if fischl::utils::parse_url(url.parse().unwrap()).is_ok() { return Some(url.to_string()); }
     }
     None
 }

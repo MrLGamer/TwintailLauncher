@@ -114,6 +114,8 @@
     "xxmi.show_warnings.description": "Show mod parse warnings for debugging broken mods.",
     "xxmi.dump_shaders.label": "Dump Shaders",
     "xxmi.dump_shaders.description": "Enable shader dumping for mod development.",
+    "xxmi.cache_shaders.label": "Cache Shaders",
+    "xxmi.cache_shaders.description": "Enable shader cache of XXMI.",
     "xxmi.hunting_mode.label": "Hunting Mode",
     "xxmi.hunting_mode.description": "Choose how XXMI hunting mode behaves.",
     "xxmi.hunting_mode.disabled": "Disabled",
@@ -135,8 +137,6 @@
     "linux.runner_location.description": "Path to Wine/Proton folder.",
     "linux.prefix_location.label": "Prefix Location",
     "linux.prefix_location.description": "Path to the Wine/Proton prefix.",
-    "linux.jadeite.label": "Jadeite",
-    "linux.jadeite.description": "Enable Jadeite patch.",
     "linux.gamemode.label": "Gamemode",
     "linux.gamemode.description": "Enable Feral Interactive's GameMode.",
     "linux.mangohud.label": "MangoHUD",
@@ -166,6 +166,14 @@
     "manage.copy_authkey.copied_description": "Ready to paste into Aivo sync.",
     "manage.copy_authkey.failed": "Copy failed",
     "manage.copy_authkey.failed_description": "Could not copy authkey. Open pull history first.",
+    "manage.copy_pullurl": "Copy Pull Url",
+    "manage.copy_pullurl.description": "Copy url for importing your pull history",
+    "manage.copy_pullurl.copying": "Copying url...",
+    "manage.copy_pullurl.copying_description": "Reading latest game log and copying to clipboard...",
+    "manage.copy_pullurl.copied": "Url copied",
+    "manage.copy_pullurl.copied_description": "Ready to paste into your pull tracker of choice.",
+    "manage.copy_pullurl.failed": "Copy failed",
+    "manage.copy_pullurl.failed_description": "Could not copy url. Open pull history first.",
     "manage.open_engine_log": "Open Engine Log",
     "manage.open_engine_log.description": "View game engine log",
     "manage.runner_title": "Manage Runner",
@@ -230,7 +238,8 @@
     "cancel": "Cancel",
     "install_button": "Install Game",
     "locate_button": "Locate Game",
-    "use_existing_install": "Use existing install"
+    "use_existing_install": "Use existing install",
+    "exe_not_found": "Game executable not found in this path, please pick a directory containing game executable."
   },
 
   "game_button": {

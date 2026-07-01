@@ -114,6 +114,8 @@
     "xxmi.show_warnings.description": "Показувати попередження парсингу модів, щоб налагоджувати несправні моди.",
     "xxmi.dump_shaders.label": "Дамп шейдерів",
     "xxmi.dump_shaders.description": "Увімкнути дамп шейдерів для розробки модів.",
+    "xxmi.cache_shaders.label": "Кеш шейдерів",
+    "xxmi.cache_shaders.description": "Увімкнути кеш шейдерів XXMI.",
     "xxmi.hunting_mode.label": "Режим полювання",
     "xxmi.hunting_mode.description": "Вибери, як має поводитись режим полювання XXMI.",
     "xxmi.hunting_mode.disabled": "Вимкнено",
@@ -135,8 +137,6 @@
     "linux.runner_location.description": "Шлях до папки Wine/Proton.",
     "linux.prefix_location.label": "Розташування префікса",
     "linux.prefix_location.description": "Шлях до префікса Wine/Proton.",
-    "linux.jadeite.label": "Jadeite",
-    "linux.jadeite.description": "Увімкнути патч Jadeite.",
     "linux.gamemode.label": "GameMode",
     "linux.gamemode.description": "Увімкнути GameMode від Feral Interactive.",
     "linux.mangohud.label": "MangoHUD",
@@ -166,6 +166,14 @@
     "manage.copy_authkey.copied_description": "Готово до вставки в Aivo Sync.",
     "manage.copy_authkey.failed": "Помилка копіювання",
     "manage.copy_authkey.failed_description": "Не вдалося скопіювати Authkey. Спочатку відкрий історію завантажень.",
+    "manage.copy_pullurl": "Копіювати посилання витягу",
+    "manage.copy_pullurl.description": "Скопіюйте посилання для імпорту історії витягів",
+    "manage.copy_pullurl.copying": "Копіювання посилання...",
+    "manage.copy_pullurl.copying_description": "Читання останнього журналу гри та копіювання в буфер обміну...",
+    "manage.copy_pullurl.copied": "Посилання скопійовано",
+    "manage.copy_pullurl.copied_description": "Готово до вставки у ваш застосунок для відстеження витягів.",
+    "manage.copy_pullurl.failed": "Помилка копіювання",
+    "manage.copy_pullurl.failed_description": "Не вдалося скопіювати посилання. Спочатку відкрийте історію витягів.",
     "manage.open_engine_log": "Відкрити лог рушія",
     "manage.open_engine_log.description": "Переглянути лог рушія гри",
     "manage.runner_title": "Керування ранером",
@@ -230,7 +238,8 @@
     "cancel": "Скасувати",
     "install_button": "Встановити гру",
     "locate_button": "Знайти гру",
-    "use_existing_install": "Використати наявну інсталяцію"
+    "use_existing_install": "Використати наявну інсталяцію",
+    "exe_not_found": "Виконуваний файл гри не знайдено за цим шляхом. Будь ласка, виберіть теку, яка містить виконуваний файл гри."
   },
 
   "game_button": {
