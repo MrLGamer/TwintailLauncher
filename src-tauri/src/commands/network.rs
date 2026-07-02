@@ -6,13 +6,17 @@ use std::{
     io::{Read, Seek, SeekFrom, Write},
     net::{TcpListener, TcpStream},
     path::Path,
-    sync::OnceLock,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        OnceLock,
+    },
     thread,
-    time::Instant,
+    time::{Duration, Instant},
 };
 use tauri::{AppHandle, Manager};
 
 static WALLPAPER_SERVER_PORT: OnceLock<Result<u16, String>> = OnceLock::new();
+static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Serialize, Clone)]
 pub struct NetworkStatus {
@@ -65,12 +69,15 @@ fn live_background_cache_path(app: &AppHandle, url: &str) -> Result<std::path::P
         return Err("Wallpaper URL must use HTTP or HTTPS".to_string());
     }
 
+    // Only mp4/webm are servable: the loopback server and cleanup both key off
+    // those extensions, so anything else would produce a file that can never be
+    // served or reclaimed. Reject it up front instead of caching a dead file.
     let extension = parsed_url
         .path_segments()
         .and_then(|segments| segments.last())
-        .and_then(|filename| filename.rsplit_once('.').map(|(_, extension)| extension))
-        .filter(|extension| matches!(extension.to_ascii_lowercase().as_str(), "mp4" | "webm"))
-        .unwrap_or("video");
+        .and_then(|filename| filename.rsplit_once('.').map(|(_, extension)| extension.to_ascii_lowercase()))
+        .filter(|extension| matches!(extension.as_str(), "mp4" | "webm"))
+        .ok_or("Wallpaper URL must point to an .mp4 or .webm file")?;
     let hash = live_background_hash(url);
     let cache_dir = app.path().app_cache_dir().map_err(|e| e.to_string())?.join("wallpapers");
     Ok(cache_dir.join(format!("{hash}.{extension}")))
@@ -167,6 +174,16 @@ pub fn cleanup_live_background_cache(app: AppHandle, urls: Vec<String>) -> Resul
         let path = entry.path();
         let Some(filename) = path.file_name().and_then(|filename| filename.to_str()) else { continue };
         let Some((hash, extension)) = filename.rsplit_once('.') else { continue };
+        if extension == "tmp" {
+            // Reclaim scratch files from interrupted downloads, but leave recent
+            // ones in case a download is still in flight.
+            let stale = entry.metadata().ok()
+                .and_then(|meta| meta.modified().ok())
+                .and_then(|modified| modified.elapsed().ok())
+                .is_some_and(|age| age > Duration::from_secs(3600));
+            if stale { let _ = fs::remove_file(&path); }
+            continue;
+        }
         if hash.len() != 64 || !hash.chars().all(|c| c.is_ascii_hexdigit()) || !matches!(extension, "mp4" | "webm") {
             continue;
         }
@@ -190,15 +207,38 @@ pub async fn cache_live_background(app: AppHandle, url: String) -> Result<String
     }
 
     fs::create_dir_all(&cache_dir).map_err(|e| format!("Failed to create wallpaper cache: {e}"))?;
-    let response = reqwest::get(parsed_url)
-        .await
-        .map_err(|e| format!("Failed to download wallpaper: {e}"))?
-        .error_for_status()
-        .map_err(|e| format!("Failed to download wallpaper: {e}"))?;
-    let bytes = response.bytes().await.map_err(|e| format!("Failed to read wallpaper download: {e}"))?;
-    let temporary_path = cache_path.with_extension("tmp");
-    fs::write(&temporary_path, bytes).map_err(|e| format!("Failed to write wallpaper cache: {e}"))?;
-    fs::rename(&temporary_path, &cache_path).map_err(|e| format!("Failed to finalize wallpaper cache: {e}"))?;
+
+    // Unique scratch name so concurrent downloads of the same URL can't clobber
+    // one another. Leftover temps from interrupted downloads are reclaimed by
+    // cleanup_live_background_cache.
+    let cache_filename = cache_path.file_name().and_then(|name| name.to_str()).ok_or("Invalid wallpaper cache path")?;
+    let unique = format!("{}-{}", std::process::id(), TEMP_FILE_COUNTER.fetch_add(1, Ordering::Relaxed));
+    let temporary_path = cache_dir.join(format!("{cache_filename}.{unique}.tmp"));
+
+    // Stream chunks straight to disk rather than buffering the whole video in
+    // memory, which would spike RAM by the full wallpaper size.
+    let download = async {
+        let mut response = reqwest::get(parsed_url)
+            .await
+            .map_err(|e| format!("Failed to download wallpaper: {e}"))?
+            .error_for_status()
+            .map_err(|e| format!("Failed to download wallpaper: {e}"))?;
+        let mut file = fs::File::create(&temporary_path).map_err(|e| format!("Failed to write wallpaper cache: {e}"))?;
+        while let Some(chunk) = response.chunk().await.map_err(|e| format!("Failed to read wallpaper download: {e}"))? {
+            file.write_all(&chunk).map_err(|e| format!("Failed to write wallpaper cache: {e}"))?;
+        }
+        file.sync_all().map_err(|e| format!("Failed to flush wallpaper cache: {e}"))?;
+        Ok::<(), String>(())
+    };
+
+    if let Err(e) = download.await {
+        let _ = fs::remove_file(&temporary_path);
+        return Err(e);
+    }
+    if let Err(e) = fs::rename(&temporary_path, &cache_path) {
+        let _ = fs::remove_file(&temporary_path);
+        return Err(format!("Failed to finalize wallpaper cache: {e}"));
+    }
 
     cached_wallpaper_url(cache_dir, &cache_path)
 }
