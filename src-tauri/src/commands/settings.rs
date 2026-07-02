@@ -10,6 +10,25 @@ use tauri_plugin_opener::OpenerExt;
 #[cfg(target_os = "linux")]
 use std::os::unix::process::CommandExt;
 
+/// Open a path in the system file manager.
+///
+/// The opener plugin's `reveal_item_in_dir` talks to the file manager over
+/// zbus/D-Bus on Linux, which crashes the process under the CEF runtime. On
+/// Linux we open the containing directory with the subprocess-based opener
+/// (xdg-open) instead, which works fine under CEF. Windows keeps the native
+/// "reveal and select the item" behavior.
+fn reveal_in_file_manager<R: Runtime>(app: &AppHandle<R>, path: &Path) -> Result<(), tauri_plugin_opener::Error> {
+    #[cfg(target_os = "linux")]
+    {
+        let dir = if path.is_dir() { path } else { path.parent().unwrap_or(path) };
+        app.opener().open_path(dir.to_string_lossy().to_string(), None::<&str>)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        app.opener().reveal_item_in_dir(path)
+    }
+}
+
 #[tauri::command]
 pub async fn list_settings<R: Runtime>(app: AppHandle<R>) -> Option<GlobalSettings> {
     let settings = get_settings(&app);
@@ -169,7 +188,7 @@ pub fn open_folder<R: Runtime>(app: AppHandle<R>, manifest_id: String, install_i
                 let xxmi = Path::new(&s.xxmi_path);
                 let fp = xxmi.join(&fm).join("d3dx.ini");
                 if fp.exists() {
-                    match app.opener().reveal_item_in_dir(fp.as_path()) {
+                    match reveal_in_file_manager(&app, fp.as_path()) {
                         Ok(_) => {}
                         Err(_e) => { show_dialog_with_callback(&app, "error", "TwintailLauncher", "dialogs.directory_open_failed", None, None, None); }
                     }
@@ -184,7 +203,7 @@ pub fn open_folder<R: Runtime>(app: AppHandle<R>, manifest_id: String, install_i
                 let gm = get_manifest(&app, dm.filename).unwrap();
                 let fp = Path::new(&i.directory).join(gm.paths.exe_filename);
                 if fp.exists() {
-                    match app.opener().reveal_item_in_dir(fp.as_path()) {
+                    match reveal_in_file_manager(&app, fp.as_path()) {
                         Ok(_) => {}
                         Err(_e) => { show_dialog_with_callback(&app, "error", "TwintailLauncher", "dialogs.directory_open_failed", None, None, None); }
                     }
@@ -197,7 +216,7 @@ pub fn open_folder<R: Runtime>(app: AppHandle<R>, manifest_id: String, install_i
                 let i = install.unwrap();
                 let fp = Path::new(&i.runner_path).join("proton");
                 if fp.exists() {
-                    match app.opener().reveal_item_in_dir(fp.as_path()) {
+                    match reveal_in_file_manager(&app, fp.as_path()) {
                         Ok(_) => {}
                         Err(_e) => { show_dialog_with_callback(&app, "error", "TwintailLauncher", "dialogs.directory_open_failed", None, None, None); }
                     }
@@ -210,7 +229,7 @@ pub fn open_folder<R: Runtime>(app: AppHandle<R>, manifest_id: String, install_i
                 let i = runner.unwrap();
                 let fp = Path::new(&i.runner_path).join("proton");
                 if fp.exists() {
-                    match app.opener().reveal_item_in_dir(fp.as_path()) {
+                    match reveal_in_file_manager(&app, fp.as_path()) {
                         Ok(_) => {}
                         Err(_e) => { show_dialog_with_callback(&app, "error", "TwintailLauncher", "dialogs.directory_open_failed", None, None, None); }
                     }
@@ -223,7 +242,7 @@ pub fn open_folder<R: Runtime>(app: AppHandle<R>, manifest_id: String, install_i
                 let i = install.unwrap();
                 let fp = Path::new(&i.runner_prefix).join("version");
                 if fp.exists() {
-                    match app.opener().reveal_item_in_dir(fp.as_path()) {
+                    match reveal_in_file_manager(&app, fp.as_path()) {
                         Ok(_) => {}
                         Err(_e) => { show_dialog_with_callback(&app, "error", "TwintailLauncher", "dialogs.directory_open_failed", None, None, None); }
                     }
@@ -245,7 +264,7 @@ pub fn open_folder<R: Runtime>(app: AppHandle<R>, manifest_id: String, install_i
                         let base = if gm.biz != "wuwa_global" { prefix.join("pfx/drive_c/users/steamuser/AppData/LocalLow/") } else { game_dir };
                         let engine_log = base.join(crate::utils::get_engine_log_from_game(base.to_str().unwrap().to_string(), gm.biz, i.region_code));
                         if engine_log.exists() {
-                            match app.opener().reveal_item_in_dir(engine_log.as_path()) {
+                            match reveal_in_file_manager(&app, engine_log.as_path()) {
                                 Ok(_) => {}
                                 Err(_e) => { show_dialog_with_callback(&app, "error", "TwintailLauncher", "dialogs.directory_open_failed", None, None, None); }
                             }
@@ -258,7 +277,7 @@ pub fn open_folder<R: Runtime>(app: AppHandle<R>, manifest_id: String, install_i
                     let base = if gm.biz != "wuwa_global" { app.path().home_dir().unwrap().join("AppData/LocalLow/") } else { game_dir };
                     let engine_log = base.join(crate::utils::get_engine_log_from_game(base.to_str().unwrap().to_string(), gm.biz, i.region_code));
                     if engine_log.exists() {
-                        match app.opener().reveal_item_in_dir(engine_log.as_path()) {
+                        match reveal_in_file_manager(&app, engine_log.as_path()) {
                             Ok(_) => {}
                             Err(_e) => { crate::utils::show_dialog_with_callback(&app, "error", "TwintailLauncher", "dialogs.directory_open_failed", None, None, None); }
                         }
@@ -598,7 +617,7 @@ pub fn open_in_prefix<R: Runtime>(app: AppHandle<R>, install_id: String, path_ty
                         },
                         Err(e) => { show_dialog_with_callback(&app, "error", "TwintailLauncher", "dialogs.steamrt_diagnostics_exec_critical", None, None, None); }
                     }
-                    match app.opener().reveal_item_in_dir(log_path_file.as_path()) {
+                    match reveal_in_file_manager(&app, log_path_file.as_path()) {
                         Ok(_) => {}
                         Err(_e) => { show_dialog_with_callback(&app, "error", "TwintailLauncher", "dialogs.steamrt3_log_open_failed", None, None, None); }
                     }
@@ -642,7 +661,7 @@ pub fn open_in_prefix<R: Runtime>(app: AppHandle<R>, install_id: String, path_ty
                         },
                         Err(e) => { show_dialog_with_callback(&app, "error", "TwintailLauncher", "dialogs.steamrt_diagnostics_exec_critical", None, None, None); }
                     }
-                    match app.opener().reveal_item_in_dir(log_path_file.as_path()) {
+                    match reveal_in_file_manager(&app, log_path_file.as_path()) {
                         Ok(_) => {}
                         Err(_e) => { show_dialog_with_callback(&app, "error", "TwintailLauncher", "dialogs.steamrt4_log_open_failed", None, None, None); }
                     }
