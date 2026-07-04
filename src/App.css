@@ -21,14 +21,14 @@ html.ttl-csd main {
        positioned overlays (GameInfoOverlay, PlayStatsOverlay, ActionBar, ...),
        so they shift down with main instead of anchoring to the viewport top. */
     position: relative;
-    margin-top: 38px;
-    height: calc(100vh - 38px);
+    margin-top: 46px;
+    height: calc(100vh - 46px);
 }
 
 /* Full-screen pages (Runner Manager, Downloads, Settings) span inset-0,
    which starts under the header bar — push them below it. */
 html.ttl-csd .ttl-page-view {
-    top: 38px;
+    top: 46px;
 }
 
 /* Native Chromium window dragging: pointer-downs inside an `app-region: drag`
@@ -44,6 +44,29 @@ html.ttl-csd .ttl-page-view {
     -webkit-app-region: no-drag;
     app-region: no-drag;
 }
+
+/* libadwaita-style window controls: the grey disc is always visible (as in
+   GNOME apps), brightening on hover/press. */
+.ttl-winctl {
+    width: 24px;
+    height: 24px;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.1);
+    transition: background-color 0.15s ease;
+}
+
+.ttl-winctl:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.ttl-winctl:active {
+    background: rgba(255, 255, 255, 0.22);
+}
+
 
 /* Disable dragging and text selection for a cleaner UI */
 img,

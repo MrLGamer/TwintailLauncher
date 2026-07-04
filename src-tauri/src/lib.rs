@@ -84,6 +84,10 @@ pub fn run() {
                     .background_color(tauri::window::Color(20, 15, 30, 255))
                     .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36")
                     .decorations(!use_csd)
+                    // No .transparent(true) here: rounded CSD corners would need an alpha
+                    // window surface, but CEF declares the whole Wayland surface opaque
+                    // (set_opaque_region) with no API to override, so mutter garbles any
+                    // transparent corner pixels. Square corners until fixed upstream.
                     .build()
                     .expect("failed to create main window");
             }

@@ -3,7 +3,7 @@ import { Minus, Copy, Square, X } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCustomDecorations } from "../../utils/useCustomDecorations";
 
-const HEADER_HEIGHT = 38;
+const HEADER_HEIGHT = 46;
 
 const AppHeaderBar: React.FC = () => {
     const enabled = useCustomDecorations();
@@ -48,39 +48,39 @@ const AppHeaderBar: React.FC = () => {
             className="ttl-drag-region fixed top-0 left-0 right-0 z-[100] flex items-center justify-between select-none animate-fadeIn"
             style={{
                 height: HEADER_HEIGHT,
-                background: "#1c1526",
-                borderBottom: "1px solid rgba(192,132,252,0.15)",
+                background: "#221f28",
+                boxShadow: "0 1px 0 rgba(0,0,0,0.35)",
             }}
             onMouseDown={onBarMouseDown}
         >
             <div className="flex items-center gap-2 pl-3 pointer-events-none">
                 <img src="/launcher-icon.png" alt="" className="w-4 h-4" />
-                <span className="text-sm font-medium text-purple-100">Twintail Launcher</span>
+                <span className="text-[0.85rem] font-semibold text-purple-100/90 tracking-wide">Twintail Launcher</span>
             </div>
-            <div className="ttl-no-drag flex items-center h-full">
+            <div className="ttl-no-drag flex items-center gap-3 pr-3">
                 <button
-                    className="h-full w-11 flex items-center justify-center text-purple-200/70 hover:bg-purple-600/30 transition-colors"
+                    className="ttl-winctl"
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={() => getCurrentWindow().minimize().catch(() => {})}
                     aria-label="Minimize"
                 >
-                    <Minus size={15} />
+                    <Minus size={12} strokeWidth={2.25} />
                 </button>
                 <button
-                    className="h-full w-11 flex items-center justify-center text-purple-200/70 hover:bg-purple-600/30 transition-colors"
+                    className="ttl-winctl"
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={() => getCurrentWindow().toggleMaximize().catch(() => {})}
                     aria-label={isMaximized ? "Restore" : "Maximize"}
                 >
-                    {isMaximized ? <Copy size={13} /> : <Square size={12} />}
+                    {isMaximized ? <Copy size={10} strokeWidth={2.25} /> : <Square size={9} strokeWidth={2.5} />}
                 </button>
                 <button
-                    className="h-full w-11 flex items-center justify-center text-purple-200/70 hover:bg-red-500/80 hover:text-white transition-colors"
+                    className="ttl-winctl"
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={() => getCurrentWindow().close().catch(() => {})}
                     aria-label="Close"
                 >
-                    <X size={15} />
+                    <X size={12} strokeWidth={2.25} />
                 </button>
             </div>
         </div>
