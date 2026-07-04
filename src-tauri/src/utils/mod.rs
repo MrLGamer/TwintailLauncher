@@ -446,11 +446,24 @@ pub fn is_tiling_wm() -> bool {
     }
 }
 
+#[cfg(target_os = "linux")]
+pub fn is_wayland() -> bool {
+    std::env::var("WAYLAND_DISPLAY").is_ok_and(|v| !v.is_empty())
+        || std::env::var("XDG_SESSION_TYPE").is_ok_and(|v| v.eq_ignore_ascii_case("wayland"))
+}
+
+#[cfg(target_os = "linux")]
+pub fn is_gnome() -> bool {
+    let is_gnome_value = |val: String| val.to_ascii_lowercase().split(':').any(|d| d == "gnome");
+    std::env::var("XDG_CURRENT_DESKTOP").is_ok_and(is_gnome_value)
+        || std::env::var("XDG_SESSION_DESKTOP").is_ok_and(is_gnome_value)
+}
+
 #[allow(unused_variables)]
 #[tauri::command]
 pub fn should_use_custom_decorations() -> bool {
     #[cfg(target_os = "linux")]
-    { !is_tiling_wm() }
+    { is_wayland() && is_gnome() && !is_tiling_wm() }
     #[cfg(target_os = "windows")]
     { false }
 }
