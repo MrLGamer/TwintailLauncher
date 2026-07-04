@@ -200,7 +200,7 @@ export default class App extends React.Component<any, any> {
         return (
             <>
                 <AppHeaderBar />
-                <main className={`w-full h-screen flex flex-row bg-transparent overflow-x-hidden transition-opacity duration-500 ${this.state.isContentLoaded ? 'opacity-100' : 'opacity-0'} ${this.state.openPopup != POPUPS.NONE ? "popup-open" : ""}`}>
+                <main className={`ttl-app-main w-full h-screen flex flex-row bg-transparent overflow-x-hidden transition-opacity duration-500 ${this.state.isContentLoaded ? 'opacity-100' : 'opacity-0'} ${this.state.openPopup != POPUPS.NONE ? "popup-open" : ""}`}>
                     <BackgroundLayer
                         currentSrc={this.state.gameBackground}
                         previousSrc={this.state.previousBackground}

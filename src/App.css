@@ -7,13 +7,25 @@
 }
 
 /* === Global Styles === */
+html, body {
+    /* App is a single fixed-viewport layout; no page ever needs to scroll the
+       document itself (panels scroll internally). This also prevents a
+       spurious scrollbar: html.ttl-csd main's margin-top collapses through
+       #root/body (nothing between them establishes a block formatting
+       context), which would otherwise make the document 46px taller than
+       the viewport. */
+    overflow: hidden;
+}
+
 body {
     background: #140f1e;
 }
 
 /* === Custom window decorations (Linux, floating desktops only) === */
-/* html.ttl-csd is toggled by AppHeaderBar when should_use_custom_decorations() is true. */
-html.ttl-csd main {
+/* html.ttl-csd is toggled by AppHeaderBar when should_use_custom_decorations() is true.
+   Scoped to .ttl-app-main (not the bare `main` tag) since AppLoadingScreen also
+   renders a <main> element that must not be shifted/resized by this rule. */
+html.ttl-csd .ttl-app-main {
     /* main uses Tailwind's h-screen (100vh); offset+shrink it by the fixed
        header bar's height instead of padding the body, since padding on an
        ancestor doesn't reduce a child's own explicit vh-based height.
