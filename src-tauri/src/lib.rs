@@ -18,7 +18,7 @@ use crate::downloading::QueueJobPayload;
 use crate::downloading::misc::check_extras_update;
 use crate::utils::db_manager::{init_db, DbInstances};
 use crate::utils::repo_manager::{load_manifests, ManifestLoader, ManifestLoaders};
-use crate::utils::{args, register_listeners, run_async_command, setup_or_fix_default_paths, sync_install_backgrounds};
+use crate::utils::{args, register_listeners, run_async_command, setup_or_fix_default_paths, sync_install_backgrounds, should_use_custom_decorations};
 use crate::utils::system_tray::init_tray;
 use crate::commands::runners::{add_installed_runner, get_installed_runner_by_id, get_installed_runner_by_version, is_steamrt_installed, list_installed_runners, remove_installed_runner, update_installed_runner_install_status};
 use crate::commands::network::check_network_connectivity;
@@ -66,6 +66,27 @@ pub fn run() {
         }
     }.setup(|app| {
             let handle = app.handle();
+            // The "main" window is built manually on Linux (the declarative config entry is
+            // suppressed via tauri.linux.conf.json) so decorations can be decided at creation
+            // time: tiling WMs stay borderless, floating desktops (GNOME/KDE/...) get the
+            // frameless window with the frontend's custom header bar (AppHeaderBar).
+            #[cfg(target_os = "linux")]
+            {
+                let use_csd = !utils::is_tiling_wm();
+                tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("index.html".into()))
+                    .title("Twintail Launcher")
+                    .inner_size(1280.0, 720.0)
+                    .min_inner_size(1280.0, 720.0)
+                    .maximizable(true)
+                    .minimizable(true)
+                    .resizable(true)
+                    .incognito(false)
+                    .background_color(tauri::window::Color(20, 15, 30, 255))
+                    .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36")
+                    .decorations(!use_csd)
+                    .build()
+                    .expect("failed to create main window");
+            }
             #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
             {
                 // Why in the absolute fuck is fedora atomic garbage distros doing /home -> var/home symlink???
@@ -134,7 +155,6 @@ pub fn run() {
 
                 #[cfg(target_os = "linux")]
                 {
-                    utils::fix_window_decorations(handle);
                     utils::sync_installed_runners(handle);
                     downloading::misc::download_or_update_steamrt3(handle);
                     downloading::misc::download_or_update_steamrt4(handle);
@@ -149,7 +169,7 @@ pub fn run() {
             update_install_game_path, update_install_runner_path, update_install_dxvk_path, update_install_skip_version_updates, update_install_skip_hash_valid, update_install_use_xxmi, update_install_use_fps_unlock, update_install_fps_value, update_install_graphics_api, update_install_env_vars, update_install_pre_launch_cmd, update_install_launch_cmd, update_install_game_background, update_install_prefix_path, update_install_launch_args, update_install_dxvk_version, update_install_runner_version, update_install_use_gamemode, update_install_use_mangohud, update_install_xxmi_config, update_install_show_drpc, update_install_disable_system_idle, copy_authkey, validate_path_exists,
             list_compatibility_manifests, get_compatibility_manifest_by_manifest_id,
             game_launch, check_game_running, get_download_sizes, get_resume_states, update_install_mangohud_config_path, update_settings_default_mangohud_config_path, add_shortcut, remove_shortcut, pause_game_download, queue_move_up, queue_move_down, queue_remove, queue_set_paused, queue_activate_job, queue_reorder, queue_resume_job, get_download_queue_state, queue_clear_completed,
-            add_installed_runner, remove_installed_runner, get_installed_runner_by_version, get_installed_runner_by_id, list_installed_runners, update_installed_runner_install_status, is_steamrt_installed, check_network_connectivity, check_app_update, get_locale, list_locales, update_settings_app_lang_cmd])
+            add_installed_runner, remove_installed_runner, get_installed_runner_by_version, get_installed_runner_by_id, list_installed_runners, update_installed_runner_install_status, is_steamrt_installed, check_network_connectivity, check_app_update, get_locale, list_locales, update_settings_app_lang_cmd, should_use_custom_decorations])
         .build(tauri::generate_context!())
         .expect("Error while running TwintailLauncher!");
 

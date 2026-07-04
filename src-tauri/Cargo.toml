@@ -43,6 +43,11 @@ tauri-plugin-clipboard-manager = { git = "https://github.com/tauri-apps/plugins-
 tauri = { git = "https://github.com/tauri-apps/tauri", rev = "f5c7530354cb66b5859b9f5d11c8ec1a053448b3" }
 tauri-plugin = { git = "https://github.com/tauri-apps/tauri", rev = "f5c7530354cb66b5859b9f5d11c8ec1a053448b3" }
 
+# Vendored copy of the CEF runtime with a draggable-regions patch so the frameless
+# custom-decorations window can be dragged on Wayland (see vendor/README.md).
+[patch."https://github.com/tauri-apps/tauri"]
+tauri-runtime-cef = { path = "vendor/tauri-runtime-cef" }
+
 # Fuck NVIDIA btw
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 wgpu = { version = "27.0.1", default-features = false, features = ["vulkan"] }

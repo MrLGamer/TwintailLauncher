@@ -8,7 +8,41 @@
 
 /* === Global Styles === */
 body {
-    background: #000;
+    background: #140f1e;
+}
+
+/* === Custom window decorations (Linux, floating desktops only) === */
+/* html.ttl-csd is toggled by AppHeaderBar when should_use_custom_decorations() is true. */
+html.ttl-csd main {
+    /* main uses Tailwind's h-screen (100vh); offset+shrink it by the fixed
+       header bar's height instead of padding the body, since padding on an
+       ancestor doesn't reduce a child's own explicit vh-based height.
+       position:relative makes main the containing block for its absolutely
+       positioned overlays (GameInfoOverlay, PlayStatsOverlay, ActionBar, ...),
+       so they shift down with main instead of anchoring to the viewport top. */
+    position: relative;
+    margin-top: 38px;
+    height: calc(100vh - 38px);
+}
+
+/* Full-screen pages (Runner Manager, Downloads, Settings) span inset-0,
+   which starts under the header bar — push them below it. */
+html.ttl-csd .ttl-page-view {
+    top: 38px;
+}
+
+/* Native Chromium window dragging: pointer-downs inside an `app-region: drag`
+   area of a frameless window are treated as titlebar drags by CEF/Chromium
+   (works on Wayland, where the X11 startDragging path cannot). Interactive
+   children must opt out via no-drag to stay clickable. */
+.ttl-drag-region {
+    -webkit-app-region: drag;
+    app-region: drag;
+}
+
+.ttl-no-drag {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
 }
 
 /* Disable dragging and text selection for a cleaner UI */

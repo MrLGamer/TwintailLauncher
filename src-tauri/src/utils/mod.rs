@@ -438,12 +438,21 @@ pub fn is_flatpak() -> bool {
 }
 
 #[cfg(target_os = "linux")]
-pub fn fix_window_decorations<R: Runtime>(app: &AppHandle<R>) {
-    let ssd = vec!["hyprland", "i3", "sway", "bspwm", "awesome", "dwm", "xmonad", "qtile", "niri", "mango", "mangowc"];
+pub fn is_tiling_wm() -> bool {
+    let tiling = vec!["hyprland", "i3", "sway", "bspwm", "awesome", "dwm", "xmonad", "qtile", "niri", "mango", "mangowc"];
     match std::env::var("XDG_SESSION_DESKTOP") {
-        Ok(val) => { if ssd.contains(&&**&val.to_ascii_lowercase()) { app.get_window("main").unwrap().set_decorations(false).unwrap(); } else { app.get_window("main").unwrap().set_decorations(true).unwrap(); } },
-        Err(_e) => {},
+        Ok(val) => tiling.contains(&&**&val.to_ascii_lowercase()),
+        Err(_e) => false,
     }
+}
+
+#[allow(unused_variables)]
+#[tauri::command]
+pub fn should_use_custom_decorations() -> bool {
+    #[cfg(target_os = "linux")]
+    { !is_tiling_wm() }
+    #[cfg(target_os = "windows")]
+    { false }
 }
 
 #[cfg(target_os = "linux")]

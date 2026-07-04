@@ -97,7 +97,7 @@ export default function PageViewContainer({
 
     return (
         <div
-            className={`absolute inset-0 left-16 z-30 flex flex-col overflow-hidden border-l border-white/10 ${isOpen ? '' : 'pointer-events-none'}`}
+            className={`ttl-page-view absolute inset-0 left-16 z-30 flex flex-col overflow-hidden border-l border-white/10 ${isOpen ? '' : 'pointer-events-none'}`}
             style={{
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',

@@ -16,6 +16,7 @@ import ActionBar from "./components/layout/ActionBar";
 import PopupOverlay from "./components/layout/PopupOverlay";
 import PageViewContainer from "./components/pages/PageViewContainer";
 import GameInfoOverlay from "./components/layout/GameInfoOverlay";
+import AppHeaderBar from "./components/layout/AppHeaderBar";
 import PlayStatsOverlay from "./components/layout/PlayStatsOverlay";
 import { startInitialLoad, NetworkMonitor, type RecoveryProgress, type NetworkStatus } from "./services/loader";
 import { showDialogAsync, closeCurrentDialog } from "./context/DialogContext";
@@ -198,6 +199,7 @@ export default class App extends React.Component<any, any> {
 
         return (
             <>
+                <AppHeaderBar />
                 <main className={`w-full h-screen flex flex-row bg-transparent overflow-x-hidden transition-opacity duration-500 ${this.state.isContentLoaded ? 'opacity-100' : 'opacity-0'} ${this.state.openPopup != POPUPS.NONE ? "popup-open" : ""}`}>
                     <BackgroundLayer
                         currentSrc={this.state.gameBackground}
