@@ -468,6 +468,41 @@ pub fn should_use_custom_decorations() -> bool {
     { false }
 }
 
+// System light/dark preference, read from the settings portal
+// (org.freedesktop.appearance color-scheme) since CEF never updates
+// prefers-color-scheme on Linux. NoPreference (GNOME "Default" style) means light.
+#[tauri::command]
+pub async fn get_system_theme() -> String {
+    #[cfg(target_os = "linux")]
+    {
+        use ashpd::desktop::settings::{ColorScheme, Settings};
+        match Settings::new().await {
+            Ok(settings) => match settings.color_scheme().await {
+                Ok(ColorScheme::PreferDark) | Err(_) => "dark".to_string(),
+                Ok(_) => "light".to_string(),
+            },
+            Err(_) => "dark".to_string(),
+        }
+    }
+    #[cfg(target_os = "windows")]
+    { "dark".to_string() }
+}
+
+#[cfg(target_os = "linux")]
+pub fn spawn_system_theme_watcher<R: Runtime>(app: &AppHandle<R>) {
+    let handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        use ashpd::desktop::settings::{ColorScheme, Settings};
+        use futures_util::StreamExt;
+        let Ok(settings) = Settings::new().await else { return };
+        let Ok(mut scheme_stream) = settings.receive_color_scheme_changed().await else { return };
+        while let Some(scheme) = scheme_stream.next().await {
+            let theme = if matches!(scheme, ColorScheme::PreferDark) { "dark" } else { "light" };
+            let _ = handle.emit("system_theme_changed", theme);
+        }
+    });
+}
+
 #[cfg(target_os = "linux")]
 pub fn update_steam_compat_config(append_items: Vec<&str>) -> String {
     let existing = std::env::var("STEAM_COMPAT_CONFIG").unwrap_or_default();

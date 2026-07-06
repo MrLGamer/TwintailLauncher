@@ -52,6 +52,13 @@ tauri-runtime-cef = { path = "vendor/tauri-runtime-cef" }
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 wgpu = { version = "27.0.1", default-features = false, features = ["vulkan"] }
 
+[target."cfg(target_os = \"linux\")".dependencies]
+# System light/dark preference via the settings portal (CEF has no GTK color-scheme
+# integration, so prefers-color-scheme never updates); already in-tree via the
+# xdg-portal dialog backend.
+ashpd = { version = "0.11", default-features = false, features = ["tokio"] }
+futures-util = { version = "0.3", default-features = false }
+
 [target."cfg(any(target_os = \"windows\"))".dependencies]
 shortcuts-rs = "1.1.1"
 

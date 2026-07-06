@@ -57,6 +57,29 @@ html.ttl-csd .ttl-page-view {
     app-region: no-drag;
 }
 
+/* Header bar palette. Follows the system (GNOME) light/dark preference. CEF has
+   no GTK color-scheme integration so prefers-color-scheme is useless here; the
+   backend reads the settings portal instead and AppHeaderBar stamps .ttl-light. */
+:root {
+    --ttl-headerbar-bg: #222226;
+    --ttl-headerbar-fg: #ffffff;
+    --ttl-headerbar-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+    --ttl-winctl-fg: rgba(255, 255, 255, 0.9);
+    --ttl-winctl-bg: rgba(255, 255, 255, 0.1);
+    --ttl-winctl-bg-hover: rgba(255, 255, 255, 0.15);
+    --ttl-winctl-bg-active: rgba(255, 255, 255, 0.22);
+}
+
+html.ttl-light {
+    --ttl-headerbar-bg: #fafafb;
+    --ttl-headerbar-fg: #323237;
+    --ttl-headerbar-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
+    --ttl-winctl-fg: rgba(0, 0, 0, 0.8);
+    --ttl-winctl-bg: rgba(0, 0, 0, 0.08);
+    --ttl-winctl-bg-hover: rgba(0, 0, 0, 0.13);
+    --ttl-winctl-bg-active: rgba(0, 0, 0, 0.19);
+}
+
 /* libadwaita-style window controls: the grey disc is always visible (as in
    GNOME apps), brightening on hover/press. */
 .ttl-winctl {
@@ -66,17 +89,17 @@ html.ttl-csd .ttl-page-view {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: rgba(255, 255, 255, 0.9);
-    background: rgba(255, 255, 255, 0.1);
+    color: var(--ttl-winctl-fg);
+    background: var(--ttl-winctl-bg);
     transition: background-color 0.15s ease;
 }
 
 .ttl-winctl:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--ttl-winctl-bg-hover);
 }
 
 .ttl-winctl:active {
-    background: rgba(255, 255, 255, 0.22);
+    background: var(--ttl-winctl-bg-active);
 }
 
 
