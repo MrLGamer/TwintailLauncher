@@ -364,6 +364,7 @@ pub fn open_in_prefix<R: Runtime>(app: AppHandle<R>, install_id: String, path_ty
                         let mut cmd = std::process::Command::new("bash");
                         cmd.arg("-c");
                         cmd.arg(&command);
+                        crate::utils::env_with_host_display(&mut cmd);
 
                         cmd.env("WINEARCH", "win64");
                         cmd.env("WINEPREFIX", prefix.clone() + "/pfx");
@@ -425,6 +426,7 @@ pub fn open_in_prefix<R: Runtime>(app: AppHandle<R>, install_id: String, path_ty
                         let mut cmd = std::process::Command::new("bash");
                         cmd.arg("-c");
                         cmd.arg(&command);
+                        crate::utils::env_with_host_display(&mut cmd);
 
                         cmd.env("WINEARCH", "win64");
                         cmd.env("WINEPREFIX", prefix.clone() + "/pfx");
@@ -486,6 +488,7 @@ pub fn open_in_prefix<R: Runtime>(app: AppHandle<R>, install_id: String, path_ty
                         let mut cmd = std::process::Command::new("bash");
                         cmd.arg("-c");
                         cmd.arg(&command);
+                        crate::utils::env_with_host_display(&mut cmd);
 
                         cmd.env("WINEARCH", "win64");
                         cmd.env("WINEPREFIX", prefix.clone() + "/pfx");
@@ -547,6 +550,7 @@ pub fn open_in_prefix<R: Runtime>(app: AppHandle<R>, install_id: String, path_ty
                         let mut cmd = std::process::Command::new("bash");
                         cmd.arg("-c");
                         cmd.arg(&command);
+                        crate::utils::env_with_host_display(&mut cmd);
 
                         cmd.env("WINEARCH", "win64");
                         cmd.env("WINEPREFIX", prefix.clone() + "/pfx");
@@ -601,6 +605,7 @@ pub fn open_in_prefix<R: Runtime>(app: AppHandle<R>, install_id: String, path_ty
                     let mut cmd = std::process::Command::new("bash");
                     cmd.arg("-c");
                     cmd.arg(&command);
+                    crate::utils::env_with_host_display(&mut cmd);
 
                     cmd.stdout(std::process::Stdio::from(log_file));
                     cmd.stderr(std::process::Stdio::from(log_file_stderr));
@@ -645,6 +650,7 @@ pub fn open_in_prefix<R: Runtime>(app: AppHandle<R>, install_id: String, path_ty
                     let mut cmd = std::process::Command::new("bash");
                     cmd.arg("-c");
                     cmd.arg(&command);
+                    crate::utils::env_with_host_display(&mut cmd);
 
                     cmd.stdout(std::process::Stdio::from(log_file));
                     cmd.stderr(std::process::Stdio::from(log_file_stderr));

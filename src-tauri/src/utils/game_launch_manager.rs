@@ -89,6 +89,7 @@ pub fn launch<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, gm: Game
         let mut cmd = Command::new("bash");
         cmd.arg("-c");
         cmd.arg(&command);
+        crate::utils::env_with_host_display(&mut cmd);
 
         cmd.env("WINEARCH", "win64");
         cmd.env("WINEPREFIX", prefix.clone() + "/pfx");
@@ -154,6 +155,7 @@ pub fn launch<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, gm: Game
         let mut cmd = Command::new("bash");
         cmd.arg("-c");
         cmd.arg(&final_cmd);
+        crate::utils::env_with_host_display(&mut cmd);
 
         cmd.env("SteamGameId", if gm.biz == "wuwa_global" { "3513350".to_string() } else { appid.clone().to_string() });
         cmd.env("SteamOS", "1");
@@ -232,6 +234,7 @@ pub fn launch<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, gm: Game
         let mut cmd = Command::new("bash");
         cmd.arg("-c");
         cmd.arg(&command);
+        crate::utils::env_with_host_display(&mut cmd);
 
         cmd.env("SteamGameId", if gm.biz == "wuwa_global" { "3513350".to_string() } else { appid.clone().to_string() });
         cmd.env("SteamOS", "1");
@@ -319,6 +322,7 @@ fn load_xxmi<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, prefix: S
             let mut cmd = Command::new("bash");
             cmd.arg("-c");
             cmd.arg(&command);
+            crate::utils::env_with_host_display(&mut cmd);
 
             let loader_mode = if mipath == "efmi" || mipath == "wwmi" { "inject" } else { "hook" };
             cmd.env("LOADER_MODE", loader_mode);
@@ -376,6 +380,7 @@ fn load_fps_unlock<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, biz
             let mut cmd = Command::new("bash");
             cmd.arg("-c");
             cmd.arg(&command);
+            crate::utils::env_with_host_display(&mut cmd);
 
             cmd.env("WINEARCH", "win64");
             cmd.env("WINEPREFIX", prefix.clone() + "/pfx");
@@ -440,6 +445,7 @@ fn run_winetricks<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, stea
         let mut cmd = Command::new("bash");
         cmd.arg("-c");
         cmd.arg(&command);
+        crate::utils::env_with_host_display(&mut cmd);
 
         cmd.env("WINE", format!("{runner}/files/bin/wine64"));
         cmd.env("WINESERVER", format!("{runner}/files/bin/wineserver"));

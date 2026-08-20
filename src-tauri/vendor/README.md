@@ -35,6 +35,11 @@ All in `src/cef_impl.rs`, marked with `LOCAL PATCH` comments:
 2. `BrowserClient::drag_handler()` always installs the handler (previously only
    when `dragDropEnabled` was true) so region forwarding works independently of
    file drag-drop; `on_drag_enter` gates itself to preserve prior behavior.
+3. Region forwarding no longer silently drops regions when the windows map is
+   reentrantly borrowed: `try_apply_draggable_regions` + a posted
+   `ApplyDraggableRegionsTask` retry the application from the top of the CEF UI
+   message loop (Chromium does not re-report regions until they change, so a
+   dropped update would leave the titlebar undraggable).
 
 `Cargo.toml` was adjusted for standalone use: workspace-inherited keys replaced
 with concrete values, `path` dependencies redirected to the same git rev.

@@ -32,6 +32,7 @@ pub mod gpu;
 pub mod models;
 pub mod repo_manager;
 pub mod shortcuts;
+#[cfg(target_os = "windows")]
 pub mod system_tray;
 pub mod discord_rpc;
 
@@ -435,6 +436,25 @@ pub fn prevent_system_idle(is_idle: bool) -> Option<keepawake::KeepAwake> {
 #[cfg(target_os = "linux")]
 pub fn is_flatpak() -> bool {
     std::env::var("FLATPAK_ID").is_ok()
+}
+
+// On Wayland sessions DISPLAY is blanked process-wide so CEF never attaches to
+// XWayland (lib.rs), but launched children (Proton/Wine games, winecfg, ...)
+// still need the session's X server. The original value is captured before the
+// blanking and re-attached to every child via `env_with_host_display`.
+#[cfg(target_os = "linux")]
+static HOST_DISPLAY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+#[cfg(target_os = "linux")]
+pub fn capture_host_display() {
+    let _ = HOST_DISPLAY.set(std::env::var("DISPLAY").unwrap_or_default());
+}
+
+#[cfg(target_os = "linux")]
+pub fn env_with_host_display(cmd: &mut std::process::Command) {
+    if let Some(d) = HOST_DISPLAY.get() {
+        if !d.is_empty() { cmd.env("DISPLAY", d); }
+    }
 }
 
 #[cfg(target_os = "linux")]

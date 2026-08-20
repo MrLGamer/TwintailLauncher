@@ -19,6 +19,7 @@ use crate::downloading::misc::check_extras_update;
 use crate::utils::db_manager::{init_db, DbInstances};
 use crate::utils::repo_manager::{load_manifests, ManifestLoader, ManifestLoaders};
 use crate::utils::{args, register_listeners, run_async_command, setup_or_fix_default_paths, sync_install_backgrounds, should_use_custom_decorations, get_system_theme};
+#[cfg(target_os = "windows")]
 use crate::utils::system_tray::init_tray;
 use crate::commands::runners::{add_installed_runner, get_installed_runner_by_id, get_installed_runner_by_version, is_steamrt_installed, list_installed_runners, remove_installed_runner, update_installed_runner_install_status};
 use crate::commands::network::check_network_connectivity;
@@ -40,11 +41,20 @@ pub fn run() {
     let builder = {
         #[cfg(target_os = "linux")]
         {
-            unsafe { std::env::set_var("DISPLAY", ""); }
+            // Pick the ozone backend from the session type instead of forcing wayland:
+            // X11 sessions previously got a blank DISPLAY + wayland ozone and no window.
+            // On Wayland, DISPLAY is blanked so CEF never attaches to XWayland, but the
+            // original value is captured first and re-attached to every launched child
+            // (utils::env_with_host_display) - games run through Proton need XWayland.
+            utils::capture_host_display();
+            let ozone_backend = if utils::is_wayland() {
+                unsafe { std::env::set_var("DISPLAY", ""); }
+                "wayland"
+            } else { "x11" };
             if std::env::var("TTL_BYPASS_NVIDIA_FIXES").is_err() { utils::gpu::fuck_nvidia(); }
             utils::raise_fd_limit(999999);
             tauri::Builder::<tauri::Cef>::new()
-                .command_line_args([("ozone-platform", Some("wayland"))])
+                .command_line_args([("ozone-platform", Some(ozone_backend))])
                 .manage(ManifestLoaders {game: ManifestLoader::default(), runner: utils::repo_manager::RunnerLoader::default()})
                 .manage(DownloadState { tokens: Mutex::new(HashMap::new()), queue: Mutex::new(None), verified_files: Mutex::new(HashMap::new()) })
                 .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| { let _ = app.get_window("main").expect("no main window").show(); let _ = app.get_window("main").expect("no main window").set_focus(); }))
@@ -68,11 +78,15 @@ pub fn run() {
             let handle = app.handle();
             // The "main" window is built manually on Linux (the declarative config entry is
             // suppressed via tauri.linux.conf.json) so decorations can be decided at creation
-            // time: tiling WMs stay borderless, floating desktops (GNOME/KDE/...) get the
-            // frameless window with the frontend's custom header bar (AppHeaderBar).
+            // time. The gate must match the frontend's (should_use_custom_decorations), or
+            // desktops end up frameless with no header bar:
+            //   GNOME Wayland floating -> frameless + AppHeaderBar (mutter offers no SSD)
+            //   tiling WMs             -> borderless (the WM manages frames)
+            //   everything else        -> native decorations (KDE/wlroots/X11 have SSD)
             #[cfg(target_os = "linux")]
             {
-                let use_csd = !utils::is_tiling_wm();
+                let use_csd = should_use_custom_decorations();
+                let decorations = !use_csd && !utils::is_tiling_wm();
                 tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("index.html".into()))
                     .title("Twintail Launcher")
                     .inner_size(1280.0, 720.0)
@@ -83,7 +97,10 @@ pub fn run() {
                     .incognito(false)
                     .background_color(tauri::window::Color(20, 15, 30, 255))
                     .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36")
-                    .decorations(!use_csd)
+                    .decorations(decorations)
+                    // Parity with tauri.conf.json's dragDropEnabled: false (the manual
+                    // builder defaults to true; the declarative entry is suppressed here).
+                    .disable_drag_drop_handler()
                     // No .transparent(true) here: rounded CSD corners would need an alpha
                     // window surface, but CEF declares the whole Wayland surface opaque
                     // (set_opaque_region) with no API to override, so mutter garbles any
@@ -95,7 +112,7 @@ pub fn run() {
                     .expect("failed to create main window");
 
                 // Keep the custom header bar in sync with the system light/dark style.
-                if should_use_custom_decorations() { utils::spawn_system_theme_watcher(handle); }
+                if use_csd { utils::spawn_system_theme_watcher(handle); }
             }
             #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
             {
@@ -140,7 +157,11 @@ pub fn run() {
                 // Start connection monitor for auto-pause/resume on connectivity changes
                 downloading::connection_monitor::start_connection_monitor(handle.clone());
                 load_manifests(handle, data_dir.clone());
-                //init_tray(handle).unwrap();
+                // Tray stays disabled on Linux: tray-icon needs the GTK main loop, which
+                // does not run under the CEF runtime (same class of problem as the
+                // zbus/opener crashes). Windows uses Wry and keeps its tray.
+                #[cfg(target_os = "windows")]
+                init_tray(handle)?;
                 // Initialize the listeners
                 register_listeners(handle);
                 register_download_handler(handle);
@@ -155,8 +176,12 @@ pub fn run() {
                 if args::get_launch_install().is_some() {
                     let id = args::get_launch_install().unwrap();
                     game_launch(handle.clone(), id);
-                    handle.get_window("main").unwrap().hide().unwrap();
-                    app.emit("sync_tray_toggle", "Show").unwrap();
+                    // Only hide when a tray exists to bring the window back; on Linux
+                    // (tray disabled under CEF) hiding would strand an invisible process.
+                    if cfg!(target_os = "windows") {
+                        handle.get_window("main").unwrap().hide().unwrap();
+                        app.emit("sync_tray_toggle", "Show").unwrap();
+                    }
                 }
 
                 // https://github.com/tauri-apps/tauri/issues/14596
@@ -191,7 +216,10 @@ pub fn run() {
                         let tray_minmize = utils::db_manager::get_settings(&app);
                         if tray_minmize.is_some() {
                             let sett = tray_minmize.unwrap();
-                            if sett.hide_app_to_tray {
+                            // hide_app_to_tray is only honored where the tray exists
+                            // (disabled on Linux under CEF) - otherwise closing the
+                            // window would leave an invisible process behind.
+                            if sett.hide_app_to_tray && cfg!(target_os = "windows") {
                                 api.prevent_close();
                                 app.get_window("main").unwrap().hide().unwrap();
                                 app.emit("sync_tray_toggle", "Show").unwrap();

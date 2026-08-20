@@ -934,10 +934,46 @@ wrap_drag_handler! {
       _frame: Option<&mut Frame>,
       regions: Option<&[DraggableRegion]>,
     ) {
-      if let Ok(windows) = self.context.windows.try_borrow()
-        && let Some(app_window) = windows.get(&self.window_id) {
-          app_window.window.set_draggable_regions(regions);
-        }
+      if !try_apply_draggable_regions(&self.context, self.window_id, regions) {
+        // The windows map is reentrantly borrowed (this callback fired inside
+        // another borrow on the UI thread). The regions must not be dropped -
+        // Chromium won't re-report them until they change - so retry from the
+        // top of the UI message loop, where the outer borrow has been released.
+        let mut task = ApplyDraggableRegionsTask::new(
+          self.context.clone(),
+          self.window_id,
+          regions.map(<[DraggableRegion]>::to_vec),
+        );
+        cef::post_task(sys::cef_thread_id_t::TID_UI.into(), Some(&mut task));
+      }
+    }
+  }
+}
+
+// LOCAL PATCH (not upstream): apply draggable regions to the window, returning
+// false when the windows map is currently (reentrantly) borrowed.
+fn try_apply_draggable_regions<T: UserEvent>(
+  context: &Context<T>,
+  window_id: WindowId,
+  regions: Option<&[DraggableRegion]>,
+) -> bool {
+  let Ok(windows) = context.windows.try_borrow() else { return false };
+  if let Some(app_window) = windows.get(&window_id) {
+    app_window.window.set_draggable_regions(regions);
+  }
+  true
+}
+
+wrap_task! {
+  struct ApplyDraggableRegionsTask<T: UserEvent> {
+    context: Context<T>,
+    window_id: WindowId,
+    regions: Option<Vec<DraggableRegion>>,
+  }
+
+  impl Task {
+    fn execute(&self) {
+      try_apply_draggable_regions(&self.context, self.window_id, self.regions.as_deref());
     }
   }
 }
