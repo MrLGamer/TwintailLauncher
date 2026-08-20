@@ -58,6 +58,13 @@ wgpu = { version = "27.0.1", default-features = false, features = ["vulkan"] }
 # xdg-portal dialog backend.
 ashpd = { version = "0.11", default-features = false, features = ["tokio"] }
 futures-util = { version = "0.3", default-features = false }
+# Opt-in codec pack (utils/codec_pack.rs): downloads Arch's codec-enabled CEF build
+# of the SAME pinned CEF version onto the user's machine. All four crates are
+# already in the dependency graph transitively; these just make them direct.
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "stream"] }
+sha2 = "0.10"
+tar = "0.4"
+zstd = "0.13"
 
 [target."cfg(any(target_os = \"windows\"))".dependencies]
 shortcuts-rs = "1.1.1"

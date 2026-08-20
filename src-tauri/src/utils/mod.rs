@@ -24,6 +24,7 @@ use crate::DownloadState;
 use crate::downloading::{QueueJobPayload, RunnerDownloadPayload, queue::QueueJobKind};
 
 pub mod args;
+pub mod codec_pack;
 pub mod db_manager;
 pub mod game_launch_manager;
 mod git_helpers;

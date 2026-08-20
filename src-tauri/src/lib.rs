@@ -23,6 +23,7 @@ use crate::utils::{args, register_listeners, run_async_command, setup_or_fix_def
 use crate::utils::system_tray::init_tray;
 use crate::commands::runners::{add_installed_runner, get_installed_runner_by_id, get_installed_runner_by_version, is_steamrt_installed, list_installed_runners, remove_installed_runner, update_installed_runner_install_status};
 use crate::commands::network::check_network_connectivity;
+use crate::utils::codec_pack::{get_codec_pack_status, install_codec_pack, remove_codec_pack, restart_launcher};
 
 mod utils;
 mod commands;
@@ -41,6 +42,9 @@ pub fn run() {
     let builder = {
         #[cfg(target_os = "linux")]
         {
+            // Re-exec with the opt-in codec pack (user-downloaded, codec-enabled CEF
+            // of the same version) before anything touches CEF. See utils/codec_pack.rs.
+            utils::codec_pack::maybe_reexec_with_pack();
             // Pick the ozone backend from the session type instead of forcing wayland:
             // X11 sessions previously got a blank DISPLAY + wayland ozone and no window.
             // On Wayland, DISPLAY is blanked so CEF never attaches to XWayland, but the
@@ -206,7 +210,7 @@ pub fn run() {
             update_install_game_path, update_install_runner_path, update_install_dxvk_path, update_install_skip_version_updates, update_install_skip_hash_valid, update_install_use_xxmi, update_install_use_fps_unlock, update_install_fps_value, update_install_graphics_api, update_install_env_vars, update_install_pre_launch_cmd, update_install_launch_cmd, update_install_game_background, update_install_prefix_path, update_install_launch_args, update_install_dxvk_version, update_install_runner_version, update_install_use_gamemode, update_install_use_mangohud, update_install_xxmi_config, update_install_show_drpc, update_install_disable_system_idle, copy_authkey, validate_path_exists, update_install_use_gamescope, update_install_gamescope_args,
             list_compatibility_manifests, get_compatibility_manifest_by_manifest_id,
             game_launch, check_game_running, get_download_sizes, get_resume_states, update_install_mangohud_config_path, update_settings_default_mangohud_config_path, add_shortcut, remove_shortcut, pause_game_download, queue_move_up, queue_move_down, queue_remove, queue_set_paused, queue_activate_job, queue_reorder, queue_resume_job, get_download_queue_state, queue_clear_completed,
-            add_installed_runner, remove_installed_runner, get_installed_runner_by_version, get_installed_runner_by_id, list_installed_runners, update_installed_runner_install_status, is_steamrt_installed, check_network_connectivity, check_app_update, get_locale, list_locales, update_settings_app_lang_cmd, should_use_custom_decorations, get_system_theme])
+            add_installed_runner, remove_installed_runner, get_installed_runner_by_version, get_installed_runner_by_id, list_installed_runners, update_installed_runner_install_status, is_steamrt_installed, check_network_connectivity, check_app_update, get_locale, list_locales, update_settings_app_lang_cmd, should_use_custom_decorations, get_system_theme, get_codec_pack_status, install_codec_pack, remove_codec_pack, restart_launcher])
         .build(tauri::generate_context!())
         .expect("Error while running TwintailLauncher!");
 

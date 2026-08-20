@@ -7180,12 +7180,15 @@ dependencies = [
  "gumdrop",
  "keepawake",
  "log",
+ "reqwest",
  "rpcdiscord",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "shortcuts-rs",
  "sqlx",
  "steam_shortcuts_util",
+ "tar",
  "tauri",
  "tauri-build",
  "tauri-plugin-clipboard-manager",
@@ -7196,6 +7199,7 @@ dependencies = [
  "tokio",
  "uuid 1.23.4",
  "wgpu",
+ "zstd",
 ]
 
 [[package]]

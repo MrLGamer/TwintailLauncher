@@ -12,6 +12,7 @@ import {
 } from "../common/SettingsComponents.tsx";
 import {PAGES} from "./PAGES";
 import {getVersion} from "@tauri-apps/api/app";
+import {showDialogAsync} from "../../context/DialogContext.tsx";
 
 interface SettingsPageProps {
     settings: any;
@@ -22,6 +23,54 @@ interface SettingsPageProps {
 
 export default function SettingsPage({ settings, fetchSettings, setCurrentPage, availableLocales }: SettingsPageProps) {
     const [activeTab, setActiveTab] = useState("general");
+    // Opt-in codec pack (Linux): user-initiated download of Arch's codec-enabled
+    // CEF build, applied via re-exec on next start. See src-tauri utils/codec_pack.rs.
+    const [codecPack, setCodecPack] = useState<{ supported: boolean; installed: boolean; active: boolean } | null>(null);
+    const [codecPackBusy, setCodecPackBusy] = useState(false);
+
+    const refreshCodecPack = () => {
+        invoke<{ supported: boolean; installed: boolean; active: boolean }>("get_codec_pack_status")
+            .then(setCodecPack)
+            .catch(() => setCodecPack(null));
+    };
+    useEffect(() => { if (window.navigator.platform.includes("Linux")) refreshCodecPack(); }, []);
+
+    const installCodecPack = async () => {
+        setCodecPackBusy(true);
+        try {
+            await invoke("install_codec_pack");
+            refreshCodecPack();
+            const btn = await showDialogAsync({
+                type: "info",
+                title: translate("launcher_settings.linux.codec_pack.restart_title"),
+                message: translate("launcher_settings.linux.codec_pack.restart_message"),
+                buttons: [
+                    { label: translate("launcher_settings.linux.codec_pack.later"), variant: "secondary" },
+                    { label: translate("launcher_settings.linux.codec_pack.restart_now"), variant: "primary" },
+                ],
+            });
+            if (btn === 1) await invoke("restart_launcher");
+        } catch (e) {
+            console.error("Codec pack install failed:", e);
+            await showDialogAsync({
+                type: "error",
+                title: translate("launcher_settings.linux.codec_pack.failed"),
+                message: String(e),
+                buttons: [{ label: translate("network.ok"), variant: "primary" }],
+            });
+        } finally {
+            setCodecPackBusy(false);
+        }
+    };
+
+    const removeCodecPack = async () => {
+        try {
+            await invoke("remove_codec_pack");
+            refreshCodecPack();
+        } catch (e) {
+            console.error("Codec pack removal failed:", e);
+        }
+    };
 
     const tabs: SettingsTab[] = [
         { id: "general", label: translate("launcher_settings.tabs.general"), icon: Settings, color: "blue" },
@@ -231,6 +280,32 @@ export default function SettingsPage({ settings, fetchSettings, setCurrentPage, 
                                         <WrenchIcon className="w-5 h-5 text-zinc-400 group-hover:text-orange-500"/>
                                         <span className="text-zinc-300 group-hover:text-white font-medium">{translate("launcher_settings.linux.repair_steamrt")}</span>
                                     </button>
+                                </div>
+                            </SettingsSection>
+                            <SettingsSection title={translate("launcher_settings.linux.media_title")}>
+                                <div className="flex items-start justify-between gap-4 p-3 bg-white/5 border border-white/5 rounded-xl">
+                                    <div className="flex-1">
+                                        <div className="text-zinc-200 font-medium">{translate("launcher_settings.linux.codec_pack.label")}</div>
+                                        <div className="text-sm text-zinc-400 mt-1">{translate("launcher_settings.linux.codec_pack.description")}</div>
+                                        {codecPack?.active && (
+                                            <div className="text-sm text-green-400/90 mt-1">{translate("launcher_settings.linux.codec_pack.active")}</div>
+                                        )}
+                                        {codecPack?.installed && !codecPack.active && (
+                                            <div className="text-sm text-orange-400/90 mt-1">{translate("launcher_settings.linux.codec_pack.restart_required")}</div>
+                                        )}
+                                    </div>
+                                    {codecPack && !codecPack.installed && (
+                                        <button onClick={installCodecPack} disabled={codecPackBusy} className="shrink-0 flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-purple-400/20 border border-white/5 hover:border-purple-600/50 rounded-xl transition-all group cursor-pointer disabled:opacity-50 disabled:cursor-wait">
+                                            <Download className="w-4 h-4 text-zinc-400 group-hover:text-purple-500"/>
+                                            <span className="text-zinc-300 group-hover:text-white font-medium">{codecPackBusy ? translate("launcher_settings.linux.codec_pack.installing") : translate("launcher_settings.linux.codec_pack.install")}</span>
+                                        </button>
+                                    )}
+                                    {codecPack?.installed && (
+                                        <button onClick={removeCodecPack} className="shrink-0 flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-orange-400/20 border border-white/5 hover:border-orange-600/50 rounded-xl transition-all group cursor-pointer">
+                                            <WrenchIcon className="w-4 h-4 text-zinc-400 group-hover:text-orange-500"/>
+                                            <span className="text-zinc-300 group-hover:text-white font-medium">{translate("launcher_settings.linux.codec_pack.remove")}</span>
+                                        </button>
+                                    )}
                                 </div>
                             </SettingsSection>
                         </>
