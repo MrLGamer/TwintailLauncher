@@ -88,6 +88,9 @@ pub fn run() {
                     // window surface, but CEF declares the whole Wayland surface opaque
                     // (set_opaque_region) with no API to override, so mutter garbles any
                     // transparent corner pixels. Square corners until fixed upstream.
+                    // Also ruled out: RuntimeStyle - WindowContent webviews already default
+                    // to Chrome style (see vendored cef_impl.rs), and the cef crate exposes
+                    // no views-widget translucency API at all (checked cef 148 incl. bindings).
                     .build()
                     .expect("failed to create main window");
 
