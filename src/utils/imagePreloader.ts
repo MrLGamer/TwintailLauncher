@@ -11,8 +11,9 @@
  * @returns Promise that resolves when all images are loaded
  */
 
-// Platform detection - used to disable dynamic backgrounds on Linux
-// TODO: Remove this check when Linux video backgrounds are fixed
+// Platform detection - used for platform-specific UI (runner deps, settings tabs).
+// Video backgrounds are NOT gated on this anymore: this branch ships CEF (Chromium)
+// on Linux, which handles <video> backgrounds the same way WebView2 does on Windows.
 export const isLinux = window.navigator.platform.includes("Linux");
 
 // Keep strong references to preloaded elements to prevent GC
@@ -99,7 +100,6 @@ export function cacheImage(url: string, element: HTMLImageElement | HTMLVideoEle
  * Check if content is a video based on file extension
  */
 export function isVideoUrl(url: string): boolean {
-  if (isLinux) return false; // TODO: Re-enable when Linux video backgrounds are fixed
   return url.endsWith('.webm') || url.endsWith('.mp4');
 }
 

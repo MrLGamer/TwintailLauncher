@@ -54,7 +54,9 @@ pub fn run() {
             if std::env::var("TTL_BYPASS_NVIDIA_FIXES").is_err() { utils::gpu::fuck_nvidia(); }
             utils::raise_fd_limit(999999);
             tauri::Builder::<tauri::Cef>::new()
-                .command_line_args([("ozone-platform", Some(ozone_backend))])
+                // autoplay-policy: live game backgrounds are muted <video> elements started
+                // programmatically; this exempts them from Chromium's engagement heuristics.
+                .command_line_args([("ozone-platform", Some(ozone_backend)), ("autoplay-policy", Some("no-user-gesture-required"))])
                 .manage(ManifestLoaders {game: ManifestLoader::default(), runner: utils::repo_manager::RunnerLoader::default()})
                 .manage(DownloadState { tokens: Mutex::new(HashMap::new()), queue: Mutex::new(None), verified_files: Mutex::new(HashMap::new()) })
                 .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| { let _ = app.get_window("main").expect("no main window").show(); let _ = app.get_window("main").expect("no main window").set_focus(); }))

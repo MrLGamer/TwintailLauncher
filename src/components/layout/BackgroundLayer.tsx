@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useLayoutEffect, useRef} from "react";
-import {getPreloadedImage, isImageFailed, isImagePreloaded, isLinux, isVideoUrl, preloadImage} from "../../utils/imagePreloader";
+import {getPreloadedImage, isImageFailed, isImagePreloaded, isVideoUrl, preloadImage} from "../../utils/imagePreloader";
 
 interface BackgroundLayerProps {
   currentSrc: string;
@@ -12,7 +12,7 @@ interface BackgroundLayerProps {
   onMainLoad?: () => void;
 }
 
-const isVideo = (src?: string) => !!src && isVideoUrl(src) && !isLinux;
+const isVideo = (src?: string) => !!src && isVideoUrl(src);
 
 // helper to detect MP4 specifically (for treating MP4 looping differently)
 const isMp4 = (src?: string) => {

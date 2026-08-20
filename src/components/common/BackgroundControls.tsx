@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { isVideoUrl, isLinux } from "../../utils/imagePreloader";
+import { isVideoUrl } from "../../utils/imagePreloader";
 
 interface BackgroundOption {
     src: string;
@@ -120,9 +120,6 @@ const BackgroundControls: React.FC<BackgroundControlsProps> = ({
     const hasMultipleBackgrounds = availableBackgrounds.length > 1;
 
     if (!isVisible || availableBackgrounds.length === 0) return null;
-
-    // On Linux, if there's only one background (static), don't show controls at all
-    if (isLinux && !hasMultipleBackgrounds) return null;
 
     return (
         <div

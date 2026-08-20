@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Events } from "../constants/events.ts";
 import { registerEvents } from "./events.ts";
 import { translate } from "../utils/i18n";
-import { isLinux, clearFailedImages, getFailedImageCount, isImagePreloaded } from "../utils/imagePreloader.ts";
+import { clearFailedImages, getFailedImageCount, isImagePreloaded } from "../utils/imagePreloader.ts";
 import { showDialogAsync } from "../context/DialogContext.tsx";
 
 const IMAGE_PRELOAD_TIMEOUT_MS = 20000;
@@ -186,8 +186,7 @@ export function startInitialLoad(opts: LoaderOptions): LoaderController {
       const games = opts.getGamesInfo() || [];
       const installs = opts.getInstalls ? (opts.getInstalls() || []) : [];
       const gameBackgrounds: string[] = games.map((g: any) => g?.assets?.game_background).filter(Boolean);
-      // Skip live backgrounds on Linux - video backgrounds not supported
-      const gameLiveBackgrounds: string[] = isLinux ? [] : games.map((g: any) => g?.assets?.game_live_background).filter(Boolean);
+      const gameLiveBackgrounds: string[] = games.map((g: any) => g?.assets?.game_live_background).filter(Boolean);
       const gameIcons: string[] = games.map((g: any) => g?.assets?.game_icon).filter(Boolean);
       const installBackgrounds: string[] = installs.map((i: any) => i?.game_background).filter(Boolean);
       const installIcons: string[] = installs.map((i: any) => i?.game_icon).filter(Boolean);
@@ -418,7 +417,7 @@ export class NetworkMonitor {
       const games = this.recoveryOpts.getGamesInfo() || [];
       const installs = this.recoveryOpts.getInstalls ? (this.recoveryOpts.getInstalls() || []) : [];
       const gameBackgrounds: string[] = games.map((g: any) => g?.assets?.game_background).filter(Boolean);
-      const gameLiveBackgrounds: string[] = isLinux ? [] : games.map((g: any) => g?.assets?.game_live_background).filter(Boolean);
+      const gameLiveBackgrounds: string[] = games.map((g: any) => g?.assets?.game_live_background).filter(Boolean);
       const gameIcons: string[] = games.map((g: any) => g?.assets?.game_icon).filter(Boolean);
       const installBackgrounds: string[] = installs.map((i: any) => i?.game_background).filter(Boolean);
       const installIcons: string[] = installs.map((i: any) => i?.game_icon).filter(Boolean);
