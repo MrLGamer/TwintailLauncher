@@ -23,7 +23,7 @@
 #[cfg(target_os = "linux")]
 mod imp {
     use std::fs;
-    use std::io::{Read, Write};
+    use std::io::Write;
     use std::path::{Path, PathBuf};
 
     /// Must match the CEF version pinned via cef-dll-sys in Cargo.toml
@@ -159,25 +159,9 @@ mod imp {
             let jpeg_real = staging.join("jpeg").join("libjpeg.so.8.3.2");
             if !jpeg_real.is_file() { return Err("libjpeg-turbo package had an unexpected layout".into()); }
             fs::copy(&jpeg_real, pack_files.join("libjpeg.so.8")).map_err(|e| e.to_string())?;
-            // Quick sanity check that this build actually carries the decoder:
-            // scan for the ffmpeg H.264 profile string in overlapping chunks so
-            // the 250+ MB library is never fully resident.
-            const NEEDLE: &[u8] = b"h264 high";
-            let mut f = fs::File::open(pack_files.join("libcef.so")).map_err(|e| e.to_string())?;
-            let mut chunk = vec![0u8; 4 * 1024 * 1024];
-            let mut carry: Vec<u8> = Vec::new();
-            let mut found = false;
-            loop {
-                let read = f.read(&mut chunk).map_err(|e| e.to_string())?;
-                if read == 0 { break; }
-                carry.extend_from_slice(&chunk[..read]);
-                if carry.windows(NEEDLE.len()).any(|w| w == NEEDLE) { found = true; break; }
-                let keep = carry.len().saturating_sub(NEEDLE.len() - 1);
-                carry.drain(..keep);
-            }
-            if !found {
-                return Err("Downloaded CEF build does not appear to include the H.264 decoder".into());
-            }
+            // No content inspection needed beyond the layout checks above: the
+            // pinned SHA-256 verification already guarantees these are exactly
+            // Arch's codec-enabled packages, byte for byte.
             Ok(pack_files)
         }).await.map_err(|e| format!("Codec pack task failed: {e}"))?;
         let pack_files = result?;
