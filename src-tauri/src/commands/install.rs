@@ -1,4 +1,4 @@
-use crate::utils::db_manager::{create_installation, delete_installation_by_id, get_install_info_by_id, get_installs, get_installs_by_manifest_id, get_manifest_info_by_filename, get_manifest_info_by_id, get_settings, update_install_disable_system_idle_by_id, update_install_env_vars_by_id, update_install_fps_value_by_id, update_install_game_background_by_id, update_install_game_location_by_id, update_install_graphics_api_by_id, update_install_ignore_updates_by_id, update_install_launch_args_by_id, update_install_launch_cmd_by_id, update_install_mangohud_config_location_by_id, update_install_pre_launch_cmd_by_id, update_install_prefix_location_by_id, update_install_shortcut_location_by_id, update_install_show_drpc_by_id, update_install_skip_hash_check_by_id, update_install_use_fps_unlock_by_id, update_install_use_gamemode_by_id, update_install_use_mangohud_by_id, update_install_use_xxmi_by_id, update_install_xxmi_config_by_id, update_installs_order};
+use crate::utils::db_manager::{create_installation, delete_installation_by_id, get_install_info_by_id, get_installs, get_installs_by_manifest_id, get_manifest_info_by_filename, get_manifest_info_by_id, get_settings, update_install_disable_system_idle_by_id, update_install_env_vars_by_id, update_install_fps_value_by_id, update_install_game_background_by_id, update_install_game_location_by_id, update_install_gamescope_args_by_id, update_install_graphics_api_by_id, update_install_ignore_updates_by_id, update_install_launch_args_by_id, update_install_launch_cmd_by_id, update_install_mangohud_config_location_by_id, update_install_pre_launch_cmd_by_id, update_install_prefix_location_by_id, update_install_shortcut_location_by_id, update_install_show_drpc_by_id, update_install_skip_hash_check_by_id, update_install_use_fps_unlock_by_id, update_install_use_gamemode_by_id, update_install_use_gamescope_by_id, update_install_use_mangohud_by_id, update_install_use_xxmi_by_id, update_install_xxmi_config_by_id, update_installs_order};
 use crate::utils::game_launch_manager::launch;
 use crate::utils::repo_manager::get_manifest;
 use crate::utils::shortcuts::remove_desktop_shortcut;
@@ -393,6 +393,12 @@ pub fn update_install_use_xxmi<R: Runtime>(app: AppHandle<R>, id: String, enable
 
     if manifest.is_some() {
         let m = manifest.unwrap();
+        let lm = get_manifest_info_by_id(&app, m.manifest_id).unwrap();
+        let gm = get_manifest(&app, lm.filename).unwrap();
+        if m.use_gamescope && (gm.biz == "wuwa_global" || gm.biz == "endfield_global") {
+            show_dialog_with_callback(&app, "warning", "TwintailLauncher", "dialogs.gamescope_xxmi_combo_unsupported", None, None, None);
+            return Some(false);
+        }
         let p = Path::new(&settings.xxmi_path).to_path_buf();
         let ps = p.to_str().unwrap().to_string();
         log::debug!("XXMI {} for install {}", if enabled { "enabled" } else { "disabled" }, m.id);
@@ -1042,7 +1048,7 @@ pub fn remove_shortcut<R: Runtime>(app: AppHandle<R>, install_id: String, shortc
                 let flatpak_steam = app.path().home_dir().unwrap().join(".var/app/com.valvesoftware.Steam/data/Steam/userdata");
                 let normal_steam = crate::utils::shortcuts::resolve_normal_steam_userdata(app.path().home_dir().unwrap());
 
-                if flatpak_steam.exists() {
+                if flatpak_steam.exists() && !is_flatpak() {
                     let status = remove_steam_shortcut(flatpak_steam, install.name.as_str());
                     if status {
                         log::info!("Removed \"{}\" from Steam (Flatpak)", install.name);
@@ -1164,13 +1170,50 @@ pub fn validate_path_exists<R: Runtime>(app: AppHandle<R>, manifest_id: String, 
             match get_manifest(&app, m.clone()) { Some(gm) => Path::new(&directory).join(&gm.paths.exe_filename).exists(), None => false }
         }
         "runner" => {
-            let mf = runner_from_runner_version(&app, manifest_id.clone()).unwrap();
-            match get_compatibility(&app, &mf) { Some(rm) => {
-                let wine64 = if rm.paths.wine64.is_empty() { rm.paths.wine32.clone() } else { rm.paths.wine64.clone() };
-                Path::new(&directory).join(wine64).exists()
-            }, None => false }
+            #[cfg(target_os = "linux")]
+            {
+                let mf = runner_from_runner_version(&app, manifest_id.clone()).unwrap();
+                match get_compatibility(&app, &mf) { Some(rm) => {
+                    let wine64 = if rm.paths.wine64.is_empty() { rm.paths.wine32.clone() } else { rm.paths.wine64.clone() };
+                    Path::new(&directory).join(wine64).exists()
+                }, None => false }
+            }
+            #[cfg(target_os = "windows")]
+            false
         }
         _ => { false }
+    }
+}
+
+#[tauri::command]
+pub fn update_install_use_gamescope<R: Runtime>(app: AppHandle<R>, id: String, enabled: bool) -> Option<bool> {
+    let manifest = get_install_info_by_id(&app, id);
+
+    if manifest.is_some() {
+        let m = manifest.unwrap();
+        let lm = get_manifest_info_by_id(&app, m.manifest_id).unwrap();
+        let gm = get_manifest(&app, lm.filename).unwrap();
+        if m.use_xxmi && (gm.biz == "wuwa_global" || gm.biz == "endfield_global")  {
+            show_dialog_with_callback(&app, "warning", "TwintailLauncher", "dialogs.gamescope_xxmi_combo_unsupported", None, None, None);
+            return Some(false);
+        }
+        update_install_use_gamescope_by_id(&app, m.id, enabled);
+        Some(true)
+    } else {
+        None
+    }
+}
+
+#[tauri::command]
+pub fn update_install_gamescope_args<R: Runtime>(app: AppHandle<R>, id: String, args: String) -> Option<bool> {
+    let install = get_install_info_by_id(&app, id);
+
+    if install.is_some() {
+        let m = install.unwrap();
+        update_install_gamescope_args_by_id(&app, m.id, args);
+        Some(true)
+    } else {
+        None
     }
 }
 

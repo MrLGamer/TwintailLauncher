@@ -138,6 +138,20 @@
     "linux.mangohud.description": "遊玩時啟用 MangoHUD 疊加層",
     "linux.mangohud_config.label": "MangoHUD 設定",
     "linux.mangohud_config.description": "要載入的 MangoHUD 設定檔案",
+    "linux.gamescope.label": "Gamescope",
+    "linux.gamescope.description": "啟用 ValveSoftware 嘅 Gamescope。",
+    "linux.gamescope_args.label": "Gamescope 參數",
+    "linux.gamescope_args.description": "傳遞俾 Gamescope 嘅額外參數。",
+    "linux.help.gamescope_args": "可用參數：",
+    "linux.help.gamescope_arg.wh": "遊戲視窗嘅解析度。如果指定咗 -h 但冇指定 -w，就會假設為 16:9 嘅螢幕比例。預設為 -W 同 -H 入面指定嘅值",
+    "linux.help.gamescope_arg.WH": "Gamescope 嘅解析度。調整 Gamescope 視窗大小會更新呢啲設定。喺嵌入模式下會被忽略。如果指定咗 -H 但冇指定 -W，就會假設為 16:9 嘅螢幕比例。預設為 1280×720",
+    "linux.help.gamescope_arg.ffrate": "遊戲嘅幀率限制。以每秒幀數為單位指定。預設為無限制",
+    "linux.help.gamescope_arg.ufrate": "遊戲失去焦點時嘅幀率限制。以每秒幀數為單位指定。預設為無限制",
+    "linux.help.gamescope_arg.upscaler": "遊戲嘅升級模式。設定為 fsr 時使用 AMD FidelityFX Super Resolution 1.0，設定為 nis 時使用 NVIDIA Image Scaling 1.0.3",
+    "linux.help.gamescope_arg.scaling": "Gamescope 嘅縮放選項。可以設定為 integer 或 stretch，設定為 stretch 時遊戲會填滿視窗（例如從 4:3 到 16:9）",
+    "linux.help.gamescope_arg.borderless": "建立無邊框視窗",
+    "linux.help.gamescope_arg.fullscreen": "建立全螢幕視窗",
+    "linux.help.gamescope_arg.extra_help": "更多選項請查看 gamescope --help",
 
     "manage.title": "管理安裝",
     "manage.open_game_folder": "打開遊戲資料夾",
@@ -518,6 +532,8 @@
     "preload_error": "嘗試預下載 {install_name} 時發生錯誤\n請重試！",
     "unsupported_predownload_mode": "不支援的預下載模式！",
     "unsupported_repair_mode": "不支援的修復下載模式！",
-    "repo_clone_failed": "無法克隆儲存庫或儲存庫缺少清單！"
+    "repo_clone_failed": "無法克隆儲存庫或儲存庫缺少清單！",
+    "gamescope_not_found": "已啟用 ValveSoftware Gamescope，但喺 PATH 入面搵唔到 `gamescope`。遊戲會喺冇 Gamescope 嘅情況下啟動。\n請從你嘅發行版安裝 `gamescope` 軟件套件或等效套件以使用呢個功能。",
+    "gamescope_xxmi_combo_unsupported": "呢個遊戲唔支援 Gamescope 同 XXMI，請淨係揀用其中一個工具！"
   }
 }
