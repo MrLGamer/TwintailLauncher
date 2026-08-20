@@ -6,7 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import SidebarSettings from "./components/sidebar/SidebarSettings.tsx";
 import SidebarIconInstall from "./components/sidebar/SidebarIconInstall.tsx";
 import SidebarLink from "./components/sidebar/SidebarLink.tsx";
-import { preloadImages, isImagePreloaded } from "./utils/imagePreloader";
+import { preloadImages, isImagePreloaded, isVideoUrl } from "./utils/imagePreloader";
 import AppLoadingScreen from "./components/AppLoadingScreen";
 import SidebarManifests from "./components/sidebar/SidebarManifests.tsx";
 import { determineButtonType } from "./utils/determineButtonType";
@@ -417,8 +417,8 @@ export default class App extends React.Component<any, any> {
                                                     const game = this.state.gamesinfo.find((g: any) => g.manifest_id === install.manifest_id);
                                                     const dynamicBg = game?.assets?.game_live_background;
                                                     const staticBg = game?.assets?.game_background || install.game_background;
-                                                    // Prefer dynamic background (video) over static
-                                                    const bestBackground = dynamicBg || staticBg;
+                                                    // Prefer dynamic background (video) over static, if this runtime can play it
+                                                    const bestBackground = (dynamicBg && isVideoUrl(dynamicBg)) ? dynamicBg : staticBg;
 
                                                     this.setBackground(bestBackground);
 
@@ -852,8 +852,8 @@ export default class App extends React.Component<any, any> {
 
                     if (this.state.installs.length === 0) {
                         if (games.length > 0 && this.state.currentGame == "") {
-                            // Use dynamic background if available, otherwise fall back to static
-                            let bg = gi[0].assets.game_live_background || gi[0].assets.game_background;
+                            // Use dynamic background if available and playable, otherwise fall back to static
+                            let bg = (gi[0].assets.game_live_background && isVideoUrl(gi[0].assets.game_live_background)) ? gi[0].assets.game_live_background : gi[0].assets.game_background;
                             this.setCurrentGame(games[0].filename.replace(".json", ""));
                             this.setDisplayName(games[0].display_name);
                             this.setBackground(bg);
@@ -1134,8 +1134,8 @@ export default class App extends React.Component<any, any> {
                 if (!game) { console.warn(`Could not find game manifest for install: ${install.name} (${install.manifest_id})`); }
 
                 if (game) {
-                    // Add dynamic background if available
-                    if (game.assets?.game_live_background) {
+                    // Add dynamic background if available and playable
+                    if (game.assets?.game_live_background && isVideoUrl(game.assets.game_live_background)) {
                         addBg(game.assets.game_live_background, "Dynamic", true);
                     }
                     // Add static background from game manifest
@@ -1157,8 +1157,8 @@ export default class App extends React.Component<any, any> {
             // If no install, get backgrounds from the current game manifest
             const game = this.state.gamesinfo.find((g: any) => g.biz === this.state.currentGame);
             if (game) {
-                // Add dynamic background if available
-                if (game.assets?.game_live_background) {
+                // Add dynamic background if available and playable
+                if (game.assets?.game_live_background && isVideoUrl(game.assets.game_live_background)) {
                     addBg(game.assets.game_live_background, "Dynamic", true);
                 }
                 if (game.assets?.game_background) {

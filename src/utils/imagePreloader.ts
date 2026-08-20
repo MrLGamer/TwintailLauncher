@@ -97,10 +97,23 @@ export function cacheImage(url: string, element: HTMLImageElement | HTMLVideoEle
 }
 
 /**
- * Check if content is a video based on file extension
+ * Codec support probe. Prebuilt CEF binaries are Chromium-branded and ship
+ * without proprietary codecs, so H.264 .mp4 live backgrounds (WuWa/PGR/Endfield
+ * CDNs) don't decode there, while .webm (VP9, Hoyoverse CDNs) always works.
+ * WebView2 on Windows plays both. Probing at runtime instead of hardcoding the
+ * platform means this self-corrects if a future CEF build gains H.264.
+ */
+const videoProbe = document.createElement("video");
+const canPlayMp4 = !!videoProbe.canPlayType('video/mp4; codecs="avc1.42E01E"');
+const canPlayWebm = !!videoProbe.canPlayType('video/webm; codecs="vp9"');
+
+/**
+ * Check if content is a video this runtime can actually play, based on file
+ * extension. Unplayable containers report false so every caller falls back to
+ * the static background instead of rendering a dead <video>/<img>.
  */
 export function isVideoUrl(url: string): boolean {
-  return url.endsWith('.webm') || url.endsWith('.mp4');
+  return (url.endsWith('.webm') && canPlayWebm) || (url.endsWith('.mp4') && canPlayMp4);
 }
 
 /**

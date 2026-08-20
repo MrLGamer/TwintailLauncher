@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import SidebarIconManifest from "../sidebar/SidebarIconManifest.tsx";
 import { POPUPS } from "../popups/POPUPS.ts";
 import { motion } from "framer-motion";
+import { isVideoUrl } from "../../utils/imagePreloader";
 
 interface GameInfoItem {
   manifest_enabled: boolean;
@@ -125,9 +126,8 @@ const ManifestsPanel: React.FC<ManifestsPanelProps> = ({
         >
           <div className="flex flex-row items-center gap-2 overflow-x-auto px-3 py-2 scrollbar-none select-none">
             {gamesinfo.map((game, _index) => {
-              // Use dynamic background if available, otherwise fall back to static
-              // Using || handles undefined, null, and empty string cases
-              let bg = game.assets.game_live_background || game.assets.game_background;
+              // Use dynamic background if available and playable, otherwise fall back to static
+              let bg = (game.assets.game_live_background && isVideoUrl(game.assets.game_live_background)) ? game.assets.game_live_background : game.assets.game_background;
 
               return (
                 <motion.div
