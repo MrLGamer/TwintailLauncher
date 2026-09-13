@@ -52,7 +52,7 @@ export const ModernToggle = ({ label, description, helpText, descriptionClassNam
                     onChange(!checked);
                 }}
                 className={`
-                    w-12 h-7 rounded-full transition-all duration-300 relative flex items-center shadow-inner
+                    w-12 h-7 shrink-0 rounded-full transition-all duration-300 relative flex items-center shadow-inner
                     ${interactive ? "cursor-pointer" : "cursor-not-allowed"}
                     ${checked ? (interactive ? "bg-purple-600 shadow-[0_0_15px_rgba(147,51,234,0.4)]" : "bg-purple-700/70") : "bg-zinc-800"}
                 `}>

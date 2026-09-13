@@ -19,11 +19,12 @@ import {
     X,
     FileCode2,
     LayoutDashboard,
-    Terminal, Settings2, Logs
+    Terminal, Settings2, Logs, Sparkles
 } from "lucide-react";
 import { SettingsLayout } from "../layout/SettingsLayout.tsx";
 import { SettingsSidebar, SettingsTab } from "../sidebar/SettingsSidebar.tsx";
 import { SettingsSection, ModernToggle, ModernInput, ModernPathInput, ModernSelect } from "../common/SettingsComponents.tsx";
+import ProtonAnimeSettings from "./ProtonAnimeSettings.tsx";
 import { translate } from "../../utils/i18n";
 
 
@@ -84,6 +85,7 @@ export default function GameSettings({
     const [keepGameUninstall, setKeepGameUninstall] = useState(false);
     const [isUninstalling, setIsUninstalling] = useState(false);
     const isLinux = window.navigator.platform.includes("Linux");
+    const isProtonAnime = isLinux && `${installSettings.runner_version || ""}`.includes("proton-anime");
 
     const tabs: SettingsTab[] = [
         { id: "general", label: translate("game_settings.tabs.general"), icon: Sliders, color: "blue" },
@@ -91,6 +93,7 @@ export default function GameSettings({
         ...(prefetchedSwitches.xxmi ? [{ id: "xxmi", label: translate("game_settings.tabs.xxmi"), icon: Wrench, color: "pink" }] : []),
         ...(prefetchedSwitches.fps_unlocker ? [{ id: "fps_unlocker", label: translate("game_settings.tabs.fps_unlocker"), icon: Gauge, color: "yellow" }] : []),
         ...(isLinux ? [{ id: "linux", label: translate("game_settings.tabs.linux"), icon: Monitor, color: "orange" }] : []),
+        ...(isProtonAnime ? [{ id: "proton_anime", label: translate("game_settings.tabs.proton_anime"), icon: Sparkles, color: "green" }] : []),
         { id: "manage", label: translate("game_settings.tabs.manage"), icon: Box, color: "purple" },
         { id: "uninstall", label: translate("game_settings.tabs.uninstall"), icon: AlertTriangle, color: "red" },
     ];
@@ -463,6 +466,14 @@ export default function GameSettings({
                             </div>
                         </SettingsSection>
                         </>
+                    )}
+
+                    {activeTab === "proton_anime" && isProtonAnime && (
+                        <ProtonAnimeSettings
+                            installSettings={installSettings}
+                            gameBiz={gameBiz}
+                            handleUpdate={handleUpdate}
+                        />
                     )}
 
                     {activeTab === "xxmi" && (

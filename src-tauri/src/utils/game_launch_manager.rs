@@ -15,6 +15,24 @@ use tauri::Manager;
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
+// Splits the env_vars string on ";" while keeping semicolons inside double quotes
+// as part of the value (e.g. PROTON_OPTISCALER_CONFIG="a=1;b=2")
+#[cfg(target_os = "linux")]
+fn split_env_vars(envs: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut in_quotes = false;
+    for c in envs.chars() {
+        match c {
+            '"' => { in_quotes = !in_quotes; current.push(c); }
+            ';' if !in_quotes => { parts.push(std::mem::take(&mut current)); }
+            _ => current.push(c),
+        }
+    }
+    parts.push(current);
+    parts
+}
+
 #[cfg(target_os = "linux")]
 pub fn launch<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, gm: GameManifest, gs: GlobalSettings) -> Result<bool, Error> {
     let Some(rm) = get_compatibility(&app, &runner_from_runner_version(app, install.runner_version.clone()).unwrap_or_default()) else { return Ok(false); };
@@ -187,7 +205,7 @@ pub fn launch<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, gm: Game
 
         if !install.env_vars.is_empty() {
             let envs = install.env_vars.clone();
-            let splitted = envs.split(";").collect::<Vec<&str>>();
+            let splitted = split_env_vars(&envs);
             let parsed: Option<Vec<(&str, String)>> = splitted.iter().map(|env| {
                     if env.is_empty() { return Some(None); }
                     let mut tmp = env.splitn(2, "=");
@@ -265,7 +283,7 @@ pub fn launch<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, gm: Game
 
         if !install.env_vars.is_empty() {
             let envs = install.env_vars.clone();
-            let splitted = envs.split(";").collect::<Vec<&str>>();
+            let splitted = split_env_vars(&envs);
             let parsed: Option<Vec<(&str, String)>> = splitted.iter().map(|env| {
                     if env.is_empty() { return Some(None); }
                     let mut tmp = env.splitn(2, "=");
@@ -339,7 +357,7 @@ fn load_xxmi<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, prefix: S
 
             if !install.env_vars.is_empty() {
                 let envs = install.env_vars.clone();
-                let splitted = envs.split(";").collect::<Vec<&str>>();
+                let splitted = split_env_vars(&envs);
                 let parsed: Option<Vec<(&str, String)>> = splitted.iter().map(|env| {
                     if env.is_empty() { return Some(None); }
                     let mut tmp = env.splitn(2, "=");
@@ -394,7 +412,7 @@ fn load_fps_unlock<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, biz
 
             if !install.env_vars.is_empty() {
                 let envs = install.env_vars.clone();
-                let splitted = envs.split(";").collect::<Vec<&str>>();
+                let splitted = split_env_vars(&envs);
                 let parsed: Option<Vec<(&str, String)>> = splitted.iter().map(|env| {
                     if env.is_empty() { return Some(None); }
                     let mut tmp = env.splitn(2, "=");
@@ -466,7 +484,7 @@ fn run_winetricks<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, stea
 
         if !install.env_vars.is_empty() {
             let envs = install.env_vars.clone();
-            let splitted = envs.split(";").collect::<Vec<&str>>();
+            let splitted = split_env_vars(&envs);
             let parsed: Option<Vec<(&str, String)>> = splitted.iter().map(|env| {
                 if env.is_empty() { return Some(None); }
                 let mut tmp = env.splitn(2, "=");
@@ -548,7 +566,7 @@ pub fn launch<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, gm: Game
 
         if !install.env_vars.is_empty() {
             let envs = install.env_vars.clone();
-            let splitted = envs.split(";").collect::<Vec<&str>>();
+            let splitted = split_env_vars(&envs);
             let parsed: Option<Vec<(&str, String)>> = splitted.iter().map(|env| {
                     if env.is_empty() { return Some(None); }
                     let mut tmp = env.splitn(2, "=");
@@ -600,7 +618,7 @@ pub fn launch<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, gm: Game
 
         if !install.env_vars.is_empty() {
             let envs = install.env_vars.clone();
-            let splitted = envs.split(";").collect::<Vec<&str>>();
+            let splitted = split_env_vars(&envs);
             let parsed: Option<Vec<(&str, String)>> = splitted.iter().map(|env| {
                     if env.is_empty() { return Some(None); }
                     let mut tmp = env.splitn(2, "=");
@@ -656,7 +674,7 @@ fn load_xxmi<R: Runtime>(app: &AppHandle<R>, install: LauncherInstall, xxmi_path
 
         if !install.env_vars.is_empty() {
             let envs = install.env_vars.clone();
-            let splitted = envs.split(";").collect::<Vec<&str>>();
+            let splitted = split_env_vars(&envs);
             let parsed: Option<Vec<(&str, String)>> = splitted.iter().map(|env| {
                 if env.is_empty() { return Some(None); }
                 let mut tmp = env.splitn(2, "=");
@@ -691,7 +709,7 @@ fn load_fps_unlock(install: LauncherInstall, biz: String, game_path: String, fps
 
         if !install.env_vars.is_empty() {
             let envs = install.env_vars.clone();
-            let splitted = envs.split(";").collect::<Vec<&str>>();
+            let splitted = split_env_vars(&envs);
             let parsed: Option<Vec<(&str, String)>> = splitted.iter().map(|env| {
                 if env.is_empty() { return Some(None); }
                 let mut tmp = env.splitn(2, "=");
